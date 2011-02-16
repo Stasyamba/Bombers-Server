@@ -1,0 +1,463 @@
+package com.vensella.bombers.game;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+
+import com.smartfoxserver.v2.SmartFoxServer;
+import com.smartfoxserver.v2.core.SFSEventType;
+import com.smartfoxserver.v2.entities.User;
+import com.smartfoxserver.v2.entities.data.SFSArray;
+import com.smartfoxserver.v2.entities.data.SFSObject;
+import com.smartfoxserver.v2.entities.variables.RoomVariable;
+import com.smartfoxserver.v2.entities.variables.SFSRoomVariable;
+import com.smartfoxserver.v2.extensions.SFSExtension;
+
+import com.vensella.bombers.dispatcher.*;
+
+import com.vensella.bombers.game.eventHandlers.*;
+import com.vensella.bombers.game.mapObjects.DynamicGameMap;
+
+
+public class BombersGame extends SFSExtension {
+
+	//Fields
+	
+	private BombersDispatcher f_dispatcher;
+	private int f_scheduleIndex;
+	private int f_gameId = GameEvent.INVALID_GAME_ID;
+	private int f_gamesCount = 0;
+	private volatile int f_currentPlayerRank = 100;
+	
+	private ArrayList<PlayerGameProfile> f_dieSequence;
+	
+	private int f_locationId;
+	private DynamicGameMap f_gameField;
+	
+	private WeaponsManager f_weaponsManager;
+	private DynamicObjectManager f_dynamicObjectManager;
+	
+	private Map<User, PlayerProfile> f_players;
+	private Map<User, PlayerGameProfile> f_gameProfiles;
+	
+	private Object f_syncObject = new Object();
+	private volatile int f_10secondToStart = 0;
+	private boolean f_isGameStarted = false;
+	
+	//Override methods
+	
+	@Override
+	public void init() {
+		
+		f_locationId = getParentRoom().getVariable("LocationId").getIntValue();
+		f_scheduleIndex = getParentRoom().getVariable("ScheduleIndex").getIntValue();
+		
+		f_dispatcher = (BombersDispatcher)getParentRoom().getZone().getExtension();
+		//f_dispatcherExtension = getParentRoom().getZone().getExtension();
+		
+		f_weaponsManager = new WeaponsManager(this);
+		f_dynamicObjectManager = new DynamicObjectManager(this);
+		
+		f_dieSequence = new ArrayList<PlayerGameProfile>();
+		f_players = new ConcurrentHashMap<User, PlayerProfile>();
+		f_gameProfiles = new ConcurrentHashMap<User, PlayerGameProfile>();
+		
+		//Initialize system event handlers
+		
+		addEventHandler(SFSEventType.USER_JOIN_ROOM, UserJoinRoomEventHandler.class);
+		addEventHandler(SFSEventType.USER_LEAVE_ROOM, UserLeaveRoomEventHandler.class);
+		
+		//Initialize custom request handlers
+		
+		addRequestHandler("game.lobby.userReady", LobbyUserReadyEventHandler.class);
+		
+		addRequestHandler("game.IDC", GameInputDirectionChangedEventHandler.class);
+		addRequestHandler("game.damagePlayer", GameDamagePlayerEventHandler.class);
+		
+		addRequestHandler("game.AW", GameActivateWeaponEventHandler.class);
+		addRequestHandler("game.actDO", GameActivateDynamicObject.class);
+		
+	}
+	
+	//Properties
+	
+	public int getLocationId() { return f_locationId; }
+	
+	public boolean isGameStarted() { return f_isGameStarted; }
+	
+	public int getGameId() { return f_gameId; }
+	
+	public int alivePlayersCount() { 
+		int count = 0; 
+		for (PlayerGameProfile gameProfile : f_gameProfiles.values()) {
+			if (gameProfile.isAlive()) count++;
+		}
+		return count;
+	}
+	
+	public DynamicGameMap getGameMap() { return f_gameField; }
+	
+	//Methods
+	
+	public PlayerGameProfile getGameProfile(User user) {
+		return f_gameProfiles.get(user);
+	}
+	
+	public int getAbsoluteExperienceDifference(int experience) {
+		
+		if (f_players.size() == 0) {
+			return Integer.MAX_VALUE - 1;
+		}
+		int sum = 0;
+		for (PlayerProfile profile : f_players.values()) {
+			sum += profile.getExperience();
+		}
+		return Math.abs(sum / f_players.size() - experience);
+	}
+	
+	//Join/leave room
+	
+	public void processUserJoin(User user) {
+		if (f_isGameStarted == false)
+		{
+			f_players.put(user, f_dispatcher.getUserProfile(user));
+			
+			SFSObject params = new SFSObject();
+			params.putInt("LocationId", f_locationId);
+			send("game.lobby.location", params, user);
+			
+			SFSArray usersInfo = new SFSArray();
+			
+			for (Entry<User, PlayerProfile> profile : f_players.entrySet()) {
+				SFSObject userInfo = new SFSObject();
+				userInfo.putUtfString("Id", profile.getValue().getId());
+				userInfo.putInt("Experience", profile.getValue().getExperience());
+				userInfo.putUtfString("Nick", profile.getValue().getNick());
+				userInfo.putUtfString("Photo", profile.getValue().getPhoto());
+				userInfo.putBool("IsReady", f_gameProfiles.containsKey(profile.getKey()));
+				usersInfo.addSFSObject(userInfo);
+			}
+			params = new SFSObject();
+			params.putSFSArray("profiles", usersInfo);
+			send("game.lobby.playersProfiles", params, getParentRoom().getUserList());
+			setUserReady(user, false);
+		} else {
+			getApi().leaveRoom(user, getParentRoom());
+		}
+	}
+	
+	public void processUserLeave(User user) {
+		if (f_isGameStarted)
+		{
+			PlayerGameProfile player = getGameProfile(user);
+			if (player != null && player.isAlive()) {
+				killPlayer(player);
+			}
+		}
+		setUserReady(user, false);
+		f_players.remove(user);
+	}
+	
+	//Methods for Lobby
+	
+	public void setUserReady(User user, boolean isReady) {
+		synchronized (f_syncObject) {
+			if (f_isGameStarted) {
+				return;
+			}
+			f_10secondToStart++;
+		}
+		final int situationId = f_10secondToStart;
+		
+		if (isReady) {
+			PlayerGameProfile gameProfile = new PlayerGameProfile(user, f_players.get(user));
+			f_gameProfiles.put(user, gameProfile);
+		} else {
+			f_gameProfiles.remove(user);
+		}
+		
+		if (f_gameProfiles.size() == getParentRoom().getCapacity()) {
+			trace("Starting game because all players says READY and room is full");
+			prepareToStartGame();
+		}
+		else if (f_gameProfiles.size() == f_players.size() &&  f_gameProfiles.size() >= getParentRoom().getCapacity() / 2) {
+			trace("10 seconds to start situation");
+			SmartFoxServer.getInstance().getTaskScheduler().schedule(new Runnable() {
+				private int f_situationId = situationId;
+				@Override
+				public void run() {
+					synchronized (f_syncObject) {
+						if (f_10secondToStart == f_situationId) {
+							trace("Starting game because of 10 seconds passed");
+							prepareToStartGame();
+						} else {
+							trace("10 seconds passed, but situation has changed!");
+						}
+					}
+				}
+			}, 10000, TimeUnit.MILLISECONDS);
+		}
+		
+		SFSObject params = new SFSObject();
+		params.putUtfString("Id", user.getName());
+		params.putBool("IsReady", isReady);
+		send("game.lobby.readyChanged", params, getParentRoom().getPlayersList());
+	}
+	
+	private void prepareToStartGame() {
+		if (f_isGameStarted) {
+			return;
+		}
+		
+		f_isGameStarted = true;
+		
+		//TODO: Remove debug code
+		RoomVariable isGameStartedVariable = new SFSRoomVariable("IsGameStarted", true, false, true, true);
+		ArrayList<RoomVariable> roomVariables = new ArrayList<RoomVariable>();
+		roomVariables.add(isGameStartedVariable);
+		getApi().setRoomVariables(null, getParentRoom(), roomVariables);
+		
+		//Initialize different data
+		
+		f_dieSequence.clear();
+		f_currentPlayerRank = 100;
+		
+		//Initialize map and start locations, and send it
+		
+		f_gameField = f_dispatcher.getMapManager().getRandomMap(f_locationId, f_gameProfiles.size());
+		trace("f_gameField = " + f_gameField.toString());
+		f_dynamicObjectManager.setWallBlocksCount(f_gameField.getWallBlocksCount());
+		
+		SFSObject params = new SFSObject();
+		params.putInt("game.lobby.3SecondsToStart.fields.MapId", f_gameField.getMapId());
+		SFSArray gameProfiles = new SFSArray();
+		boolean[] locationBusy = new boolean[f_gameField.getMaxPlayers()];
+		for (PlayerGameProfile gp : f_gameProfiles.values()) {
+			int j = (int)(Math.random() * f_gameField.getMaxPlayers());
+			while (locationBusy[j]) { j = (int)(Math.random() * f_gameField.getMaxPlayers()); }
+			locationBusy[j] = true;
+			
+			SFSObject gameProfile = new SFSObject();
+			gameProfile.putUtfString("UserId", gp.getUser().getName());
+			gameProfile.putInt("StartX", f_gameField.getStartXAt(j));
+			gameProfile.putInt("StartY", f_gameField.getStartYAt(j));
+			gameProfile.putInt("BomberId", gp.getBomberId());
+			gameProfile.putInt("AuraOne", gp.getAuraOne());
+			gameProfile.putInt("AuraTwo", gp.getAuraTwo());
+			gameProfile.putInt("AuraThree", gp.getAuraThree());
+			
+			gameProfiles.addSFSObject(gameProfile);
+		}
+		params.putSFSArray("game.lobby.3SecondsToStart.fields.PlayerGameProfiles", gameProfiles);
+		
+		send("game.lobby.3SecondsToStart", params, getParentRoom().getUserList());
+		
+		//Schedule run game
+		
+		SmartFoxServer.getInstance().getTaskScheduler().schedule(new Runnable() {
+			@Override
+			public void run() {
+				trace("Starting game");
+				startGame();
+			}
+		}, 3000, TimeUnit.MILLISECONDS);
+		
+	}
+	
+	private void startGame() {
+		f_gameId = f_gamesCount++;
+		
+		initializeDeathBlocks();
+		
+		SFSObject params = new SFSObject();
+		send("game.lobby.gameStarted", params, getParentRoom().getUserList());		
+	}
+	
+	private void endGame() {
+		synchronized (f_syncObject) {
+			if (f_isGameStarted == false) {
+				return;
+			}
+			f_gameId = GameEvent.INVALID_GAME_ID;
+		
+			//TODO: Calculate & send statistics
+			
+			//TODO: Send experience in playerDied event
+			
+			for (PlayerGameProfile profile : f_gameProfiles.values()) {
+				if (!f_dieSequence.contains(profile))
+					f_dieSequence.add(profile);
+			}
+			Collections.reverse(f_dieSequence);
+
+			SFSObject params = new SFSObject(); 
+			SFSArray stats = new SFSArray();
+			int place = 0;
+			for (PlayerGameProfile profile : f_dieSequence) {
+				SFSObject stat = new SFSObject();
+				stat.putUtfString("UserId", profile.getUser().getName());
+				stat.putInt("Place", place++);
+				stat.putInt("Experience", getParentRoom().getCapacity() - (place - 1));
+			}
+			params.putSFSArray("game.gameEnded.fields.Stats", stats);
+		
+			//TODO: Flush changes to DB
+		
+			f_gameProfiles.clear();
+			f_isGameStarted = false;
+			
+			//TODO: Remove debug code
+			RoomVariable isGameStartedVariable = new SFSRoomVariable("IsGameStarted", false, false, true, true);
+			ArrayList<RoomVariable> roomVariables = new ArrayList<RoomVariable>();
+			roomVariables.add(isGameStartedVariable);
+			getApi().setRoomVariables(null, getParentRoom(), roomVariables);
+			
+			send("game.gameEnded", params, getParentRoom().getPlayersList());
+			
+			trace("End game");
+		}
+	}
+	
+	//Event model
+	
+	public void addGameEvent(GameEvent event) {
+		f_dispatcher.addGameEvent(event, f_scheduleIndex);
+	}
+	
+	public void addDelayedGameEvent(GameEvent event, int delay) {
+		f_dispatcher.addDelayedGameEvent(event, f_scheduleIndex, delay);
+	}
+	
+	//Game process methods
+	
+	private void initializeDeathBlocks() {
+		addDelayedGameEvent(new GameEvent(this) {
+			
+			//Fields
+			
+			private int x;
+			private int y;
+			
+			private int direction = 0;
+			
+			//Methods
+			
+			@Override
+			protected void ApplyOnGame(BombersGame game, DynamicGameMap map) {
+				if (map.getObjectTypeAt(x, y) == DynamicGameMap.ObjectType.DEATH_WALL) 	return;
+
+				map.setObjectTypeAt(x, y, DynamicGameMap.ObjectType.DEATH_WALL);
+
+				SFSObject params = new SFSObject();
+				params.putInt("x", x);
+				params.putInt("y", y);
+				game.send("game.deathWallAppeared", params, game.getParentRoom().getPlayersList());					
+			
+				//RIGHT
+				if (direction == 0) {
+					if (x == map.getWidth() - 1 || map.getObjectTypeAt(x + 1, y) == DynamicGameMap.ObjectType.DEATH_WALL)
+						direction = 1;
+					else
+						x += 1;
+				}
+				//DOWN
+				if (direction == 1)	{
+					if (y == map.getHeight() - 1 || map.getObjectTypeAt(x, y + 1) == DynamicGameMap.ObjectType.DEATH_WALL)
+						direction = 2;
+					else
+						y += 1;						
+				}
+				//LEFT
+				if (direction == 2)	{
+					if (x == 0 || map.getObjectTypeAt(x - 1, y) == DynamicGameMap.ObjectType.DEATH_WALL)
+						direction = 3;
+					else
+						x -= 1;						
+				}
+				//UP
+				if (direction == 3)	{
+					if (y == 0 || map.getObjectTypeAt(x, y - 1) == DynamicGameMap.ObjectType.DEATH_WALL) {	
+						direction = 0;
+						x += 1;
+					}
+					else
+						y -= 1;						
+				}	
+				game.addDelayedGameEvent(this, 1250);
+			}
+		}, 45*1000);
+	}
+	
+	
+	private void killPlayer(PlayerGameProfile player) {
+		player.setIsAlive(false);
+		player.setGameRank(f_currentPlayerRank--);
+		f_dieSequence.add(player);
+		SFSObject params = new SFSObject();
+		params.putUtfString("UserId", player.getUser().getName());	
+		params.putUtfString("Ex", player.getUser().getName());
+		send("game.playerDied", params, getParentRoom().getPlayersList());
+		if (alivePlayersCount() <= 1) {
+			endGame();
+		}
+	}
+	
+	
+	public void damagePlayer(final User user, final int damage, final int effect, final boolean isDead) {
+		final PlayerGameProfile player = getGameProfile(user);
+		addGameEvent(new GameEvent(this) {
+			@Override
+			protected void ApplyOnGame(BombersGame game, DynamicGameMap map) {
+				if (player != null && player.isAlive()) {
+					player.addHealth(-damage);
+					if (isDead || player.getHealth() <= 0) {
+						killPlayer(player);
+					} else {
+						SFSObject params = new SFSObject();
+						params.putUtfString("UserId", user.getName());
+						params.putInt("HealthLeft", player.getHealth());
+						send("game.playerDamaged", params, getParentRoom().getPlayersList());
+					}
+				} 
+			}
+		});
+	}
+	
+	//Weapons & dynamic objects system
+	
+	public void destroyWallAt(final int x, final int y) {
+		if (f_gameField.getDynamicObject(x, y) == null) {
+			f_gameField.setDynamicObject(x, y, new DynamicObject(this, false, false) {
+				@Override
+				public GameEvent getActivateEvent() {
+					return null;
+				}
+			});
+		}
+		else {
+			return;
+		}
+		
+		addDelayedGameEvent(new GameEvent(this) {
+			@Override
+			protected void ApplyOnGame(BombersGame game, DynamicGameMap map) {
+				map.removeDynamicObject(x, y);
+				f_dynamicObjectManager.possiblyAddRandomBonus(x, y);
+				map.setObjectTypeAt(x, y, DynamicGameMap.ObjectType.EMPTY);
+			}
+		}, 50);
+	}
+	
+	public void activateWeapon(User user, int weaponId, int x, int y) {
+		f_weaponsManager.activateWeapon(user, weaponId, x, y);
+	}
+	
+	public void activateDynamicObject(User user, int x, int y) {
+		f_dynamicObjectManager.activateDynamicObject(user, x, y);
+	}
+	
+
+}
