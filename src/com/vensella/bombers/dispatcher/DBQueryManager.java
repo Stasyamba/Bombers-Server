@@ -1,6 +1,8 @@
 package com.vensella.bombers.dispatcher;
 
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -66,18 +68,29 @@ public class DBQueryManager {
 					{
 						QueuedQuery q = f_queue.take();
 						cb = q.getCallback();
-						if (q.isUpdate())
-						{
-							f_dispatcher.getParentZone().getDBManager().executeUpdate(q.getQuery(), q.getParams());
-							if (cb != null)
-								cb.run(new SFSArray());
+						Connection conn = f_dispatcher.getParentZone().getDBManager().getConnection();
+						try {
+							PreparedStatement st = conn.prepareStatement(q.getQuery());
+							int i = 1;
+							for (Object p : q.getParams()) {
+								st.setString(i++, p.toString());
+							}
+							if (q.isUpdate()) {
+								SFSArray result = SFSArray.newInstance();
+								result.addInt(st.executeUpdate());
+								if (cb != null) {
+									cb.run(result);
+								}
+							} else {
+								SFSArray result = SFSArray.newFromResultSet(st.executeQuery());
+								if (cb != null) {
+									cb.run(result);
+								}								
+							}
 						}
-						else
-						{
-							ISFSArray result = 
-								f_dispatcher.getParentZone().getDBManager().executeQuery(q.getQuery(), q.getParams());
-							if (cb != null)
-								cb.run(result);
+						finally {
+							if (conn != null)
+								conn.close();
 						}
 					}
 					catch(Exception ex)
@@ -105,6 +118,7 @@ public class DBQueryManager {
 	
 	public void ScheduleQuery(QueryCallback callback, String query, Object[] params)
 	{
+		assert callback != null;
 		QueuedQuery q = new QueuedQuery(false, callback, query, params);
 		f_queue.add(q);
 	}

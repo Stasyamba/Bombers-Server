@@ -2,6 +2,8 @@ package com.vensella.bombers.dispatcher;
 
 import java.lang.reflect.Array;
 import java.security.MessageDigest;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -17,6 +19,7 @@ import com.smartfoxserver.v2.entities.SFSRoomRemoveMode;
 import com.smartfoxserver.v2.entities.User;
 import com.smartfoxserver.v2.entities.data.ISFSArray;
 import com.smartfoxserver.v2.entities.data.ISFSObject;
+import com.smartfoxserver.v2.entities.data.SFSArray;
 import com.smartfoxserver.v2.entities.data.SFSObject;
 import com.smartfoxserver.v2.entities.variables.RoomVariable;
 import com.smartfoxserver.v2.entities.variables.SFSRoomVariable;
@@ -227,65 +230,116 @@ public class BombersDispatcher extends SFSExtension {
 	//Login
 	//
 	
-	public void loginUser(User user) {
-		try
-		{
-			String userId =  user.getName();
-			PlayerProfile profile = null;
-			
-			if (IsReleaseMode && f_profileCache.containsKey(userId))
-			{
-				profile = f_profileCache.get(userId);
-			}
-			else
-			{			
-				//TODO: Change DB id column type to varchar
+	private PlayerProfile loadProfileFromDb(User user) {
+		String userId = user.getName();
+		PlayerProfile profile = null;
+		Connection conn = null;
+		try {
+			try {
+				conn = getParentZone().getDBManager().getConnection();
 				
-				ISFSArray profileData = getParentZone().getDBManager().executeQuery(
-						"select * from `Users` where `Id` = " + userId
-					);
-				if (profileData.size() == 0)
-				{
-					getParentZone().getDBManager().executeUpdate(
-							"insert into `Users` (`Id`) values (\"" + userId + "\")"
-						);
+				PreparedStatement st = conn.prepareStatement("select * from `Users` where `Id` = ?");
+				st.setString(1, userId);
+				SFSArray profileData = SFSArray.newFromResultSet(st.executeQuery());
+				if (profileData.size() == 0) {
+					conn.setAutoCommit(false);
+					
+					st = conn.prepareStatement("insert into `Users` (`Id`) values (?)");
+					st.setString(1, userId);
+					st.executeUpdate();
+					
+					String dummyJson = SFSArray.newInstance().toJson();
+					st = conn.prepareStatement("insert into `LocationsOpen` (`UserId`, `LocationsOpen`) values (?, ?)");
+					st.setString(1, userId);
+					st.setString(2, dummyJson);
+					st.executeUpdate();
+					
+					st = conn.prepareStatement("insert into `BombersOpen` (`UserId`, `BombersOpen`) values (?, ?)");
+					st.setString(1, userId);
+					st.setString(2, dummyJson);
+					st.executeUpdate();
+					
+				    st = conn.prepareStatement("insert into `WeaponsOpen` (`UserId`, `WeaponsOpen`) values (?, ?)");
+					st.setString(1, userId);
+					st.setString(2, dummyJson);
+					st.executeUpdate();
+					
+					conn.commit();
+					
 					profile = new PlayerProfile(userId);
-				}
-				else
-				{
-					ISFSArray locationsData = getParentZone().getDBManager().executeQuery(
-							"select * from `LocationsOpen` where `UserId` = " + userId
-						);
-					ISFSArray bombersData = getParentZone().getDBManager().executeQuery(
-							"select * from `BombersOpen` where `UserId` = " + userId
-						);
-					ISFSArray itemsData = getParentZone().getDBManager().executeQuery(
-							"select * from `WeaponsOpen` where `UserId` = " + userId
-						);
+				} else {
+					st = conn.prepareStatement("select * from `LocationsOpen` where `UserId` = ?");
+					st.setString(1, userId);
+					ISFSArray locationsData = SFSArray.newFromJsonData(
+						SFSArray.newFromResultSet(st.executeQuery()).getSFSObject(0).getUtfString("LocationsOpen")
+					);
+					
+					st = conn.prepareStatement("select * from `BombersOpen` where `UserId` =  ?");
+					st.setString(1, userId);
+					ISFSArray bombersData = SFSArray.newFromJsonData(
+						SFSArray.newFromResultSet(st.executeQuery()).getSFSObject(0).getUtfString("BombersOpen")
+					);
+					
+					st = conn.prepareStatement("select * from `WeaponsOpen` where `UserId` = ?");
+					st.setString(1, userId);
+					ISFSArray itemsData = SFSArray.newFromJsonData(
+						SFSArray.newFromResultSet(st.executeQuery()).getSFSObject(0).getUtfString("WeaponsOpen")
+					);
 					
 					profile = new PlayerProfile(profileData, locationsData, itemsData, bombersData);
 				}
+			}
+			catch (Exception ex) {
+				trace ("Something bad happened during user load =(");
+				trace(ex.toString());
+				trace((Object[])ex.getStackTrace());
+				
+				if (conn != null && conn.getAutoCommit() == false) {
+					conn.rollback();
+				}
+				profile = null;
+			} finally {
+				if (conn != null) {
+					conn.setAutoCommit(true);
+					conn.close();
+				}
+			}
+		} 
+		catch (Exception ex) {
+			trace ("Something VERY bad happened during user load =(");
+			trace(ex.toString());
+			trace((Object[])ex.getStackTrace());
+			
+			profile = null;
+		}
+		return profile;
+	}
+	
+	public void loginUser(User user) {
+		String userId =  user.getName();
+		PlayerProfile profile = null;
+		
+		if (IsReleaseMode && f_profileCache.containsKey(userId))
+		{
+			profile = f_profileCache.get(userId);
+		}
+		else
+		{			
+			profile = loadProfileFromDb(user);
+			if (profile == null) {
+				user.disconnect(ClientDisconnectionReason.UNKNOWN);
+			} else {
 				f_profileCache.put(userId, profile);
 			}
-			
+		}
+		if (profile != null) {
 			ISFSObject params = profile.toSFSObject();
 			trace("User logged in");
 			trace(params.toJson());
-			
+		
 			f_profiles.put(user, profile);
 			send("interface.gameProfileLoaded", params, user);
 		}
-		catch (Exception ex)
-		{
-			trace(new Object[] {
-						"[WARNING] User profile load failed!",
-						ex.toString()
-					}
-				);
-			trace((Object[])ex.getStackTrace());
-			user.disconnect(ClientDisconnectionReason.UNKNOWN);
-		}
-		
 	}
 	
 	public PlayerProfile getUserProfile(User user) {

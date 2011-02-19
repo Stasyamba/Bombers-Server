@@ -93,37 +93,24 @@ public class InterfaceManager {
 			profile.getAdamantium() >= cost.getAdamantium() &&
 			profile.getAntimatter() >= cost.getAntimatter())
 		{
-			String sql = "";
-			if (profile.hasItemInStack(itemId))
-			{
-				sql = String.format(
-						"update `WeaponsOpen` set `%1$s` = `%1$s` + %2$s", 
-						PlayerProfile.C_Count, cost.getStack()
-					);
-			}
-			else
-			{
-				sql = String.format(
-						"insert into `WeaponsOpen` values (%1$s, %2$s, %3$s)", 
-						profile.getId(), itemId, cost.getStack()
-					);							
-			}
-			f_dispatcher.getDbManager().ScheduleUpdateQuery(null, sql, new Object[] {});
-			sql  = String.format(
-					"update `Users` set `%1$s` = `%1$s` - %2$s, `%3$s` = `%3$s` - %4$s, `%5$s` = `%5$s` - %6$s, " +
-					"`%7$s` = `%7$s` - %8$s where `%9$s` = %10$s", 
-					PlayerProfile.C_Gold, cost.getGold(), 
-					PlayerProfile.C_Crystal, cost.getCrystal(), 
-					PlayerProfile.C_Adamantium, cost.getAdamantium(), 
-					PlayerProfile.C_Antimatter, cost.getAntimatter(), 
-					PlayerProfile.C_Id, profile.getId());
-			f_dispatcher.getDbManager().ScheduleUpdateQuery(null, sql, new Object[] {});
-			
 			profile.addGold(cost.getGold());
 			profile.addCrystal(-cost.getCrystal());
 			profile.addAdamantium(-cost.getAdamantium());
 			profile.addAntimatter(-cost.getAntimatter());
 			profile.addItems(itemId, cost.getStack());
+			
+			String sql = "update `WeaponsOpen` set `WeaponsOpen` = ? where `UserId` = ?";
+			f_dispatcher.getDbManager().ScheduleUpdateQuery(
+					null, sql, new Object[] {profile.getItemsData().toJson(), profile.getId() });
+			sql  = String.format(
+					"update `Users` set `%1$s` = `%1$s` - %2$s, `%3$s` = `%3$s` - %4$s, `%5$s` = `%5$s` - %6$s, " +
+					"`%7$s` = `%7$s` - %8$s where `%9$s` = ?", 
+					PlayerProfile.C_Gold, cost.getGold(), 
+					PlayerProfile.C_Crystal, cost.getCrystal(), 
+					PlayerProfile.C_Adamantium, cost.getAdamantium(), 
+					PlayerProfile.C_Antimatter, cost.getAntimatter(), 
+					PlayerProfile.C_Id);
+			f_dispatcher.getDbManager().ScheduleUpdateQuery(null, sql, new Object[] {profile.getId()});
 			
 			SFSObject params = new SFSObject();
 			params.putBool("interface.buyItem.result.fields.status", true);
@@ -164,11 +151,11 @@ public class InterfaceManager {
 						
 						String sql  = String.format(
 								"update `Users` set `%1$s` = `%1$s` + %2$s, `%3$s` = `%3$s` + %4$s, `%5$s` = `%5$s` + %6$s, " +
-								"`%7$s` = `%7$s` + %8$s, `%9$s` = `%9$s` + %10$s where `%11$s` = %12$s", 
+								"`%7$s` = `%7$s` + %8$s, `%9$s` = `%9$s` + %10$s where `%11$s` = ?", 
 								PlayerProfile.C_Gold, rc0, PlayerProfile.C_Crystal, rc1, PlayerProfile.C_Adamantium, rc2, 
 								PlayerProfile.C_Antimatter, rc3, PlayerProfile.C_Energy, rc4,
-								PlayerProfile.C_Id, profile.getId());
-						f_dispatcher.getDbManager().ScheduleUpdateQuery(null, sql, new Object[] {});
+								PlayerProfile.C_Id);
+						f_dispatcher.getDbManager().ScheduleUpdateQuery(null, sql, new Object[] {profile.getId()});
 						//f_dispatcher.getParentZone().getDBManager().executeUpdate(sql);
 						
 						SFSObject params = new SFSObject();
@@ -185,8 +172,6 @@ public class InterfaceManager {
 					
 					@Override
 					public void run() {
-						// FAIL
-						
 						SFSObject params = new SFSObject();
 						params.putBool("interface.buyResources.result.fields.status", false);
 						f_dispatcher.send("interface.buyResources.result", params, user);
@@ -217,9 +202,6 @@ public class InterfaceManager {
 		f_dispatcher.getUserProfile(user).setPhoto(photoUrl);
 		
 		//TODO: Do DB update after user disconnect
-		
-		String sql = "update `Users` set `Photo` = \"" + photoUrl + "\" where `Id` = \"" + user.getName() + "\"";
-		f_dispatcher.getDbManager().ScheduleUpdateQuery(null, sql, new Object[] {});
 	}
 	
 	

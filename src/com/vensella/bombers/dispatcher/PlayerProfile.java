@@ -43,6 +43,8 @@ public class PlayerProfile {
 	public static final String C_FldBombersOpen = "BombersOpen";
 	public static final String C_FldWeaponsOpen = "WeaponsOpen";
 	
+	public static final String C_SmallCount = "C";
+	
 	//Constructors
 	
 	public PlayerProfile(String userId)
@@ -80,20 +82,20 @@ public class PlayerProfile {
 		f_locations = new ConcurrentHashMap<Integer, Object>();
 		for (int i = 0; i < locations.size(); ++i)
 		{
-			f_locations.put(locations.getSFSObject(i).getInt(C_LocationId), new Object());
+			f_locations.put(locations.getInt(i), new Object());
 		}
 		
 		f_items = new ConcurrentHashMap<Integer, Integer>();
 		for (int i = 0; i < items.size(); ++i)
 		{
 			ISFSObject row = items.getSFSObject(i);
-			f_items.put(row.getInt(C_WeaponId), row.getInt(C_Count));
+			f_items.put(row.getInt(C_Id), row.getInt(C_SmallCount));
 		}
 		
 		f_bombers = new ConcurrentHashMap<Integer, Object>();
 		for (int i = 0; i < bombers.size(); ++i)
 		{
-			f_bombers.put(bombers.getSFSObject(i).getInt(C_BomberId), new Object());
+			f_bombers.put(bombers.getInt(i), new Object());
 		}
 	}
 	
@@ -196,6 +198,35 @@ public class PlayerProfile {
 
 	
 	//Methods
+	
+	public SFSArray getBombersData() {
+		SFSArray bombers = new SFSArray();
+		bombers.addIntArray(f_bombers.keySet());
+		return bombers;
+	}
+	
+	public SFSArray getLocationsData() {
+		SFSArray locations = new SFSArray();
+		locations.addIntArray(f_locations.keySet());
+		return locations;
+	}
+	
+	public SFSArray getItemsData() {
+		SFSArray items = new SFSArray();
+		ArrayList<Integer> itemIds = new ArrayList<Integer>(f_items.keySet());
+		int count = itemIds.size();
+		for (int i = 0; i < count; ++i)
+		{
+			SFSObject itemInfo = new SFSObject();
+			int itemId = itemIds.get(i);
+			int itemCount = f_items.get(itemId);
+			itemInfo.putInt(C_Id, itemId);
+			itemInfo.putInt(C_SmallCount, itemCount);
+			items.addSFSObject(itemInfo);
+		}
+		return items;
+	}
+	
 	
 	public ISFSObject toSFSObject()
 	{
