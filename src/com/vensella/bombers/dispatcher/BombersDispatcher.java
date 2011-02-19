@@ -174,7 +174,7 @@ public class BombersDispatcher extends SFSExtension {
 //		addRequestHandler("interface.setAura", null);
 //		addRequestHandler("interface.setRightHandItem", null);	
 		addRequestHandler("interface.setBomber", InterfaceSetBomberEventHandler.class);	
-//		addRequestHandler("interface.setNick", null);
+		addRequestHandler("interface.setNick", InterfaceSetNickEventHandler.class);
 		addRequestHandler("interface.setPhoto", InterfaceSetPhotoEventHandler.class);
 		
 //		addRequestHandler("inerface.openLocation", null);
@@ -229,6 +229,24 @@ public class BombersDispatcher extends SFSExtension {
 	//
 	//Login
 	//
+	
+	private void saveProfileToDb(User user) {
+		PlayerProfile profile = getUserProfile(user);
+		String sql = "update `Users` set `Experience` = ?, " +
+				"`Nick` = ?, `AuraOne` = ?, `AuraTwo` = ?, `AuraThree` = ?, " +
+				"`RightHand` = ?, `BomberId` = ?, `Photo` = ? where `Id` = ?";
+		f_dbQueryManager.ScheduleUpdateQuery(null, sql, new Object[] {
+				profile.getExperience(),
+				profile.getNick(),
+				profile.getAuraOne(),
+				profile.getAuraTwo(),
+				profile.getAuraThree(),
+				profile.getRightHandItem(),
+				profile.getCurrentBomberId(),
+				profile.getPhoto(),
+				profile.getId()
+		});
+	}
 	
 	private PlayerProfile loadProfileFromDb(User user) {
 		String userId = user.getName();
@@ -340,6 +358,10 @@ public class BombersDispatcher extends SFSExtension {
 			f_profiles.put(user, profile);
 			send("interface.gameProfileLoaded", params, user);
 		}
+	}
+	
+	public void processUserLeave(User user) {
+		saveProfileToDb(user);
 	}
 	
 	public PlayerProfile getUserProfile(User user) {
