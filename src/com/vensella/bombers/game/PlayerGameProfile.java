@@ -13,6 +13,8 @@ public class PlayerGameProfile {
 	private boolean f_isAlive = true;
 	private int f_gameRank;
 	
+	private PlayerProfile f_baseGameProfile;
+	
 	private int f_bomberId;
 	private int f_auraOne;
 	private int f_auraTwo;
@@ -43,6 +45,8 @@ public class PlayerGameProfile {
 		f_weaponsUseTraking = new ConcurrentHashMap<Integer, Boolean>();
 		f_weaponsSwitchedOn = new ConcurrentHashMap<Integer, Boolean>();
 		
+		f_baseGameProfile = profile;
+		
 		f_bomberId = profile.getCurrentBomberId();
 		f_auraOne = profile.getAuraOne();
 		f_auraTwo = profile.getAuraTwo();
@@ -56,6 +60,7 @@ public class PlayerGameProfile {
 	//Getters and setters
 	
 	public User getUser() { return f_user; }
+	public PlayerProfile getBaseProfile() { return f_baseGameProfile; }
 	
 	public boolean isAlive() { return f_isAlive; }
 	public void setIsAlive(boolean isAlive) { f_isAlive = isAlive; }

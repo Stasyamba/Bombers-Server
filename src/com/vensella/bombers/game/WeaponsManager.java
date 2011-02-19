@@ -175,7 +175,7 @@ public class WeaponsManager {
 						@Override
 						public GameEvent getActivateEvent() {
 							return new GameEvent(f_game) {
-								private static final int BASE_POWER = 4;
+								private static final int BASE_POWER = 2;
 								@Override
 								protected void ApplyOnGame(BombersGame game, DynamicGameMap map) {
 									setActivated(true);
@@ -257,7 +257,7 @@ public class WeaponsManager {
 			protected void ApplyOnGame(BombersGame game, DynamicGameMap map) {
 				DynamicObject obj  = map.getDynamicObject(x, y);
 				if (obj == null && withdrawWeapon(profile, weaponId)) {				
-					obj = new DynamicObject(f_game, true, true) {
+					obj = new DynamicObject(f_game, false, false) {
 						@Override
 						public GameEvent getActivateEvent() {
 							return new GameEvent(f_game) {
@@ -265,6 +265,109 @@ public class WeaponsManager {
 								protected void ApplyOnGame(BombersGame game, DynamicGameMap map) {
 									setActivated(true);
 									
+									//UP
+									int i = 1;
+									while (map.getObjectTypeAt(x, y - i) != DynamicGameMap.ObjectType.OUT) {
+										game.destroyWallAt(x, y - i);
+										if (i % 3 == 0) {
+											for (int j = -2; j <= 2; ++j) {
+												if (j == 0) continue;
+												game.destroyWallAt(x + j, y - i);
+											}
+										}
+										i++;
+									}
+									//DOWN
+									i = 1;
+									while (map.getObjectTypeAt(x, y + i) != DynamicGameMap.ObjectType.OUT) {
+										game.destroyWallAt(x, y + i);
+										if (i % 3 == 0) {
+											for (int j = -2; j <= 2; ++j) {
+												if (j == 0) continue;
+												game.destroyWallAt(x + j, y + i);
+											}
+										}
+										i++;
+									}
+									//LEFT
+									i = 1;
+									while (map.getObjectTypeAt(x - i, y) != DynamicGameMap.ObjectType.OUT) {
+										game.destroyWallAt(x - i, y);
+										if (i % 3 == 0) {
+											for (int j = -2; j <= 2; ++j) {
+												if (j == 0) continue;
+												game.destroyWallAt(x - i, y + j);
+											}
+										}
+										i++;
+									}
+									//RIGHT
+									i = 1;
+									while (map.getObjectTypeAt(x + i, y) != DynamicGameMap.ObjectType.OUT) {
+										game.destroyWallAt(x + i, y);
+										if (i % 3 == 0) {
+											for (int j = -2; j <= 2; ++j) {
+												if (j == 0) continue;
+												game.destroyWallAt(x + i, y + j);
+											}
+										}
+										i++;
+									}
+									map.removeDynamicObject(x, y);
+									
+									SFSObject params = new SFSObject();
+									params.putUtfString("game.DOAct.f.userId", user.getName());
+									params.putInt("game.DOAct.f.type", weaponId);
+									params.putInt("game.DOAct.f.x", x);
+									params.putInt("game.DOAct.f.y", y);
+									params.putBool("game.DOAct.f.isRemoved", true);
+									f_game.send("game.DOAct", params, f_game.getParentRoom().getPlayersList());	
+								}
+							};
+						}
+					};
+					map.setDynamicObject(x, y, obj);
+					f_game.addDelayedGameEvent(obj.getActivateEvent(), 2000);
+					
+					SFSObject params = new SFSObject();
+					params.putUtfString("game.DOAdd.f.userId", user.getName());
+					params.putInt("game.DOAdd.f.type", weaponId);
+					params.putInt("game.DOAdd.f.x", x);
+					params.putInt("game.DOAdd.f.y", y);
+					f_game.send("game.DOAdd", params, f_game.getParentRoom().getPlayersList());					
+				}				
+			}
+		});			
+	}
+	
+	protected void addBombBox(final User user, final int weaponId, final int x, final int y) {
+		final PlayerGameProfile profile = f_game.getGameProfile(user);
+		f_game.addGameEvent(new GameEvent(f_game) {
+			@Override
+			protected void ApplyOnGame(BombersGame game, DynamicGameMap map) {
+				DynamicObject obj  = map.getDynamicObject(x, y);
+				if (obj == null && withdrawWeapon(profile, weaponId)) {				
+					obj = new DynamicObject(f_game, true, true) {
+						@Override
+						public GameEvent getActivateEvent() {
+							return new GameEvent(f_game) {
+								
+								private void setBoxAt(DynamicGameMap map, int x, int y) {
+									
+								}
+								
+								@Override
+								protected void ApplyOnGame(BombersGame game, DynamicGameMap map) {
+									setActivated(true);
+									
+									setBoxAt(map, x - 1, y);
+									setBoxAt(map, x - 1, y - 1);
+									setBoxAt(map, x, y - 1);
+									setBoxAt(map, x + 1, y - 1);
+									setBoxAt(map, x - 1, y);
+									setBoxAt(map, x + 1, y + 1);
+									setBoxAt(map, x, y + 1);
+									setBoxAt(map, x - 1, y + 1);
 									
 									map.removeDynamicObject(x, y);
 									
@@ -289,11 +392,7 @@ public class WeaponsManager {
 					f_game.send("game.DOAdd", params, f_game.getParentRoom().getPlayersList());					
 				}				
 			}
-		});			
-	}
-	
-	protected void addBombBox(final User user, final int weaponId, final int x, final int y) {
-		
+		});				
 	}
 	
 	//Mines

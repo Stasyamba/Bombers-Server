@@ -170,9 +170,9 @@ public class BombersDispatcher extends SFSExtension {
 		
 //		addRequestHandler("interface.setAura", null);
 //		addRequestHandler("interface.setRightHandItem", null);	
-//		addRequestHandler("interface.setBomber", null);	
+		addRequestHandler("interface.setBomber", InterfaceSetBomberEventHandler.class);	
 //		addRequestHandler("interface.setNick", null);
-//		addRequestHandler("interface.setPhoto", null);
+		addRequestHandler("interface.setPhoto", InterfaceSetPhotoEventHandler.class);
 		
 //		addRequestHandler("inerface.openLocation", null);
 //		addRequestHandler("inerface.playSingleGame", null);
@@ -317,7 +317,7 @@ public class BombersDispatcher extends SFSExtension {
 		Room bestRoom = null;
 		int currentMinExpDiff = Integer.MAX_VALUE;
 		for (Room room : rooms) {
-			if (room.isFull()) continue;
+			if (room.isFull() || room.isPasswordProtected()) continue;
 			BombersGame game = (BombersGame)room.getExtension();
 			if (game.isGameStarted()) continue;
 			if (locations.contains(game.getLocationId())) {
@@ -400,6 +400,7 @@ public class BombersDispatcher extends SFSExtension {
 		settings.setMaxUsers(4);
 		if (password.isEmpty() == false) {
 			settings.setPassword(password);
+			settings.setAutoRemoveMode(SFSRoomRemoveMode.WHEN_EMPTY);
 		}
 		settings.setGroupId(C_GameGroupId);
 		settings.setGame(true);		

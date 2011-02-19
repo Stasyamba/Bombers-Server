@@ -8,6 +8,7 @@ import com.smartfoxserver.v2.entities.data.ISFSArray;
 import com.smartfoxserver.v2.entities.data.ISFSObject;
 import com.smartfoxserver.v2.entities.data.SFSArray;
 import com.smartfoxserver.v2.entities.data.SFSObject;
+import com.vensella.bombers.game.Bombers;
 import com.vensella.bombers.game.mapObjects.Locations;
 
 public class PlayerProfile {
@@ -47,7 +48,7 @@ public class PlayerProfile {
 	public PlayerProfile(String userId)
 	{
 		f_id = userId;
-		f_nick = "";
+		f_nick = "Игрок";
 		f_photo = "";
 		
 		f_locations = new ConcurrentHashMap<Integer, Object>();
@@ -184,6 +185,13 @@ public class PlayerProfile {
 
 	public boolean isLocationOpened(int locationId) { 
 		return (locationId == Locations.C_GrassFields) || f_locations.containsKey(locationId); 
+	}
+	
+	public boolean isBomberOpened(int bomberId) {
+		if (bomberId == Bombers.C_Bobmer_Fury_Joe || bomberId == Bombers.C_Bobmer_R2D3) {
+			return true;
+		}
+		return f_bombers.containsKey(bomberId);
 	}
 
 	

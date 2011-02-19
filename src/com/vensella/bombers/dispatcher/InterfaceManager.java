@@ -71,6 +71,9 @@ public class InterfaceManager {
 		//TODO: Load prices from file/db
 		f_priceList = new HashMap<Integer, InterfaceManager.ItemCost>();
 		f_priceList.put(1, new ItemCost(10, 2, 0, 0, 5));
+		f_priceList.put(2, new ItemCost(5, 3, 0, 0, 5));
+		f_priceList.put(3, new ItemCost(2, 0, 0, 0, 10));
+		
 		f_priceList.put(21, new ItemCost(3, 1, 0, 0, 3));
 		f_priceList.put(41, new ItemCost(3, 0, 0, 0, 10));
 		f_priceList.put(61, new ItemCost(0, 5, 1, 0, 1));
@@ -78,7 +81,7 @@ public class InterfaceManager {
 		
 	}
 	
-	//Methods
+	//Methods for shopping
 	
 	public void buyItem(User user, int itemId)
 	{
@@ -191,6 +194,33 @@ public class InterfaceManager {
 				});
 	}
 	
+	//Methods for private info
+	
+	public void setBomberId(User user, int bomberId) {
+		PlayerProfile profile = f_dispatcher.getUserProfile(user);
+		if (profile.isBomberOpened(bomberId)) {
+			profile.setCurrentBomberId(bomberId);
+			
+			SFSObject params = new SFSObject();
+			params.putBool("interface.setBomber.result.fields.status", true);
+			f_dispatcher.send("interface.setBomber.result", params, user);
+		} else {
+			SFSObject params = new SFSObject();
+			params.putBool("interface.setBomber.result.fields.status", false);
+			f_dispatcher.send("interface.setBomber.result", params, user);			
+		}
+	}
+	
+	public void setPhotoUrl(User user, String photoUrl) {
+		//TODO: SQL injection protect
+		
+		f_dispatcher.getUserProfile(user).setPhoto(photoUrl);
+		
+		//TODO: Do DB update after user disconnect
+		
+		String sql = "update `Users` set `Photo` = \"" + photoUrl + "\" where `Id` = \"" + user.getName() + "\"";
+		f_dispatcher.getDbManager().ScheduleUpdateQuery(null, sql, new Object[] {});
+	}
 	
 	
 	
