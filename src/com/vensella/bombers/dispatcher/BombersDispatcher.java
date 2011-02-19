@@ -472,14 +472,15 @@ public class BombersDispatcher extends SFSExtension {
 			= new RoomExtensionSettings("bombers", "com.vensella.bombers.game.BombersGame");
 		settings.setExtension(extensionSettings);
 		settings.setName(findGameNameInternal());
-		settings.setAutoRemoveMode(SFSRoomRemoveMode.WHEN_EMPTY_AND_CREATOR_IS_GONE);
+		settings.setAutoRemoveMode(SFSRoomRemoveMode.NEVER_REMOVE);
 		settings.setMaxUsers(4);
 		if (password.isEmpty() == false) {
 			settings.setPassword(password);
-			settings.setAutoRemoveMode(SFSRoomRemoveMode.WHEN_EMPTY);
+			settings.setAutoRemoveMode(SFSRoomRemoveMode.WHEN_EMPTY_AND_CREATOR_IS_GONE);
 		}
 		settings.setGroupId(C_GameGroupId);
-		settings.setGame(true);		
+		settings.setGame(true);	
+		settings.setDynamic(true);
 		
 		List<RoomVariable> roomVariables = new ArrayList<RoomVariable>();
 		RoomVariable locationVariable = new SFSRoomVariable("LocationId", locationId, false, true, true);
