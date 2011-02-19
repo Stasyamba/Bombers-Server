@@ -99,6 +99,7 @@ public class PlayerGameProfile {
 		{
 			f_weapons.put(weaponId, count - 1);
 			f_weaponsUseTraking.put(weaponId, true);
+			f_baseGameProfile.setRegihtHandItem(weaponId);
 			return true;
 		}
 	}
@@ -110,6 +111,7 @@ public class PlayerGameProfile {
 		{
 			f_weapons.put(weaponId, count - amount);
 			f_weaponsUseTraking.put(weaponId, true);
+			f_baseGameProfile.setRegihtHandItem(weaponId);
 			return true;
 		}
 	}

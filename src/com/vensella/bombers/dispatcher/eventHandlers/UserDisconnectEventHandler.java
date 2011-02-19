@@ -11,6 +11,7 @@ import com.smartfoxserver.v2.entities.User;
 import com.smartfoxserver.v2.exceptions.SFSException;
 import com.smartfoxserver.v2.extensions.BaseServerEventHandler;
 
+import com.vensella.bombers.dispatcher.BombersDispatcher;
 import com.vensella.bombers.game.BombersGame;
 
 @Instantiation(InstantiationMode.SINGLE_INSTANCE)
@@ -19,6 +20,7 @@ public class UserDisconnectEventHandler extends BaseServerEventHandler {
 	//@SuppressWarnings("unchecked")
 	@Override
 	public void handleServerEvent(ISFSEvent event) throws SFSException {
+		BombersDispatcher dispatcher = (BombersDispatcher)getParentExtension();
 		User user = (User)event.getParameter(SFSEventParam.USER);
 		@SuppressWarnings("unchecked")
 		List<Room> rooms = (List<Room>)event.getParameter(SFSEventParam.JOINED_ROOMS);
@@ -29,6 +31,7 @@ public class UserDisconnectEventHandler extends BaseServerEventHandler {
 				game.processUserLeave(user);
 			}
 		}
+		dispatcher.processUserLeave(user);
 	}
 
 }

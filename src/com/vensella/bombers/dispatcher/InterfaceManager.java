@@ -197,12 +197,24 @@ public class InterfaceManager {
 	}
 	
 	public void setPhotoUrl(User user, String photoUrl) {
-		//TODO: SQL injection protect
-		
 		f_dispatcher.getUserProfile(user).setPhoto(photoUrl);
-		
-		//TODO: Do DB update after user disconnect
 	}
+	
+	public void setNick(User user, String nick) {
+		if (nick.length() > 10 || nick.length() < 2) {
+			SFSObject params = new SFSObject();
+			params.putBool("interface.setNick.result.fields.status", true);
+			f_dispatcher.send("interface.setNick.result", params, user);
+		} else {
+			f_dispatcher.getUserProfile(user).setNick(nick);
+			
+			SFSObject params = new SFSObject();
+			params.putBool("interface.setNick.result.fields.status", true);
+			f_dispatcher.send("interface.setNick.result", params, user);
+		}
+	}
+	
+	
 	
 	
 	

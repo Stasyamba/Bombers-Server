@@ -121,6 +121,14 @@ public class BombersGame extends SFSExtension {
 		profile.getBaseProfile().addExperience(f_gameProfiles.size() - rank);
 	}
 	
+	private void savePlayerGameResultToDb(PlayerGameProfile profile) {
+		String sql = "update `WeaponsOpen` set `WeaponsOpen` = ? where `UserId` = ?";
+		f_dispatcher.getDbManager().ScheduleUpdateQuery(null, sql, new Object[]{ 
+				profile.getBaseProfile().getItemsData().toJson(),
+				profile.getBaseProfile().getId()
+		});
+	}
+	
 	//Join/leave room
 	
 	private SFSArray getLobbyProfiles() {
@@ -292,18 +300,17 @@ public class BombersGame extends SFSExtension {
 		
 			//TODO: Calculate & send statistics
 			
-			//TODO: Send experience in playerDied event
-			
 			SFSObject params = new SFSObject();
 			if (f_dieSequence.size() > 0) {
 				PlayerGameProfile lastMan = f_dieSequence.get(0);
+				savePlayerGameResultToDb(lastMan);
 				
 				adjustPlayerExperience(lastMan, 1);
 				params.putUtfString("game.gameEnded.WinnerId", lastMan.getUser().getName());
 				params.putInt("game.gameEnded.WinnerExperience", lastMan.getBaseProfile().getExperience());
 			}
 			
-			//TODO: Flush changes to DB
+			//TODO: Flush match results to DB
 			
 			
 			f_gameProfiles.clear();
@@ -404,6 +411,7 @@ public class BombersGame extends SFSExtension {
 		adjustPlayerExperience(player, f_currentPlayerRank);
 		player.setGameRank(f_currentPlayerRank--);
 		f_dieSequence.remove(player);
+		savePlayerGameResultToDb(player);
 		
 		SFSObject params = new SFSObject();
 		params.putUtfString("UserId", player.getUser().getName());	

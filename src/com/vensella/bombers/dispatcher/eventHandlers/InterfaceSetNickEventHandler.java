@@ -8,14 +8,14 @@ import com.smartfoxserver.v2.extensions.BaseClientRequestHandler;
 import com.vensella.bombers.dispatcher.BombersDispatcher;
 
 @Instantiation(InstantiationMode.SINGLE_INSTANCE)
-public class InterfaceSetBomberEventHandler extends BaseClientRequestHandler {
+public class InterfaceSetNickEventHandler extends BaseClientRequestHandler {
 
 	@Override
 	public void handleClientRequest(User user, ISFSObject params) {
 		BombersDispatcher dispatcher = (BombersDispatcher)getParentExtension();
-		int bomberId = params.getInt("interface.setBomber.fields.bomberId");
+		String nick = params.getUtfString("interface.setNick.fields.nick");
 		
-		dispatcher.getInterfaceManager().setBomberId(user, bomberId);
+		dispatcher.getInterfaceManager().setNick(user, nick);
 	}
 
 }
