@@ -30,7 +30,7 @@ public class MapManager {
 		f_dispatcher = dispatcher;
 		f_mapPool = new HashMap<Integer, ArrayList<DynamicGameMap>>();
 		//f_bigObjectPool = new HashMap<String, DynamicBigObject>();
-		
+	
 		initializeBigObjectPool();
 		initializeMapPool();
 	}

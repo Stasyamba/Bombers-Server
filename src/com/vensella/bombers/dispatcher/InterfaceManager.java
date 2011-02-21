@@ -1,125 +1,47 @@
 package com.vensella.bombers.dispatcher;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import com.smartfoxserver.v2.entities.User;
 import com.smartfoxserver.v2.entities.data.SFSObject;
 
 public class InterfaceManager {
-
-	//Nested types
-	
-	private class ItemCost
-	{
-		//Fields
-		
-		private int f_gold;
-		private int f_crystal;
-		private int f_adamantium;
-		private int f_antimatter;
-		private int f_stack;
-		
-		//Constructors
-		
-		public ItemCost(int gold, int crystal, int adamantium, int antimatter, int stack)
-		{
-			f_gold = gold;
-			f_crystal = crystal;
-			f_adamantium = adamantium;
-			f_antimatter = antimatter;		
-			f_stack = stack;
-		}
-		
-		//Methods
-		
-		public int getGold() { return f_gold; }
-		public int getCrystal() { return f_crystal; }
-		public int getAdamantium() { return f_adamantium; }
-		public int getAntimatter() { return f_antimatter; }
-		public int getStack() { return f_stack; }
-		
-	}
-	
-	//Constants
-	
-//	private static int C_ResourceTypeGold = 0;
-//	private static int C_ResourceTypeCrystal = 1;
-//	private static int C_ResourceTypeAdamantium = 2;
-//	private static int C_ResourceTypeAntimatter = 3;
-//	private static int C_ResourceTypeEnergy = 4;
-	
-	//TODO: Add costs of resources
-	private static int C_GoldCost = 100;
-	private static int C_CrystalCost = 200;
-	private static int C_AdamantiumCost = 300;
-	private static int C_AntimatterCost = 400;
-	private static int C_EnergyCostCost = 100;
 	
 	//Fields
 	
 	private BombersDispatcher f_dispatcher;
-	private Map<Integer, ItemCost> f_priceList;
 	
 	//Constructors
 	
 	public InterfaceManager(BombersDispatcher dispatcher)
 	{
 		f_dispatcher = dispatcher;
-		
-		//Price initialize
-		//TODO: Load prices from file/db
-		f_priceList = new HashMap<Integer, InterfaceManager.ItemCost>();
-		f_priceList.put(1, new ItemCost(10, 2, 0, 0, 5));
-		f_priceList.put(2, new ItemCost(5, 3, 0, 0, 5));
-		f_priceList.put(3, new ItemCost(2, 0, 0, 0, 10));
-		
-		f_priceList.put(21, new ItemCost(3, 1, 0, 0, 3));
-		f_priceList.put(41, new ItemCost(3, 0, 0, 0, 10));
-		f_priceList.put(61, new ItemCost(0, 5, 1, 0, 1));
-		f_priceList.put(1001, new ItemCost(1, 1, 1, 1, 1));
-		
 	}
 	
 	//Methods for shopping
 	
+	public void dropItem(User user, int itemId) {
+		PlayerProfile profile = f_dispatcher.getUserProfile(user);
+		profile.removeItem(itemId);
+		String sql = "update `WeaponsOpen` set `WeaponsOpen` = ? where `UserId` = ?";
+		f_dispatcher.getDbManager().ScheduleUpdateQuery(null, sql, new Object[]{ 
+				profile.getItemsData().toJson(),
+				profile.getId()
+		});
+	}
+	
 	public void buyItem(User user, int itemId)
 	{
 		PlayerProfile profile = f_dispatcher.getUserProfile(user);
-		ItemCost cost = f_priceList.get(itemId);
-		if (cost != null &&
-			profile.getGold() >= cost.getGold() &&
-			profile.getCrystal() >= cost.getCrystal() &&
-			profile.getAdamantium() >= cost.getAdamantium() &&
-			profile.getAntimatter() >= cost.getAntimatter())
-		{
-			profile.addGold(cost.getGold());
-			profile.addCrystal(-cost.getCrystal());
-			profile.addAdamantium(-cost.getAdamantium());
-			profile.addAntimatter(-cost.getAntimatter());
-			profile.addItems(itemId, cost.getStack());
-			
-			String sql = "update `WeaponsOpen` set `WeaponsOpen` = ? where `UserId` = ?";
-			f_dispatcher.getDbManager().ScheduleUpdateQuery(
-					null, sql, new Object[] {profile.getItemsData().toJson(), profile.getId() });
-			sql  = String.format(
-					"update `Users` set `%1$s` = `%1$s` - %2$s, `%3$s` = `%3$s` - %4$s, `%5$s` = `%5$s` - %6$s, " +
-					"`%7$s` = `%7$s` - %8$s where `%9$s` = ?", 
-					PlayerProfile.C_Gold, cost.getGold(), 
-					PlayerProfile.C_Crystal, cost.getCrystal(), 
-					PlayerProfile.C_Adamantium, cost.getAdamantium(), 
-					PlayerProfile.C_Antimatter, cost.getAntimatter(), 
-					PlayerProfile.C_Id);
-			f_dispatcher.getDbManager().ScheduleUpdateQuery(null, sql, new Object[] {profile.getId()});
+		if (f_dispatcher.getPricelistManager().canBuyItem(itemId, profile)) {
+			int stack = f_dispatcher.getPricelistManager().withdrawResourcesAndBuyItem(itemId, profile);
 			
 			SFSObject params = new SFSObject();
 			params.putBool("interface.buyItem.result.fields.status", true);
-			params.putInt("interface.buyItem.result.fields.itemCostResourceType0", cost.getGold());
-			params.putInt("interface.buyItem.result.fields.itemCostResourceType1", cost.getCrystal());
-			params.putInt("interface.buyItem.result.fields.itemCostResourceType2", cost.getAdamantium());
-			params.putInt("interface.buyItem.result.fields.itemCostResourceType3", cost.getAntimatter());
+			params.putInt("interface.buyItem.result.fields.resourceType0", profile.getGold());
+			params.putInt("interface.buyItem.result.fields.resourceType1", profile.getCrystal());
+			params.putInt("interface.buyItem.result.fields.resourceType2", profile.getAdamantium());
+			params.putInt("interface.buyItem.result.fields.resourceType3", profile.getAntimatter());
 			params.putInt("interface.buyItem.result.fields.itemId", itemId);
-			params.putInt("interface.buyItem.result.fields.count", cost.getStack());
+			params.putInt("interface.buyItem.result.fields.count", stack);
 			f_dispatcher.send("interface.buyItem.result", params, user);
 		}
 		else
@@ -134,8 +56,8 @@ public class InterfaceManager {
 	public void buyResources(final User user, final int rc0, final int rc1, final int rc2, final int rc3, final int rc4)
 	{
 		final PlayerProfile profile = f_dispatcher.getUserProfile(user);
-		int totalCost = rc0 * C_GoldCost + rc1 * C_CrystalCost + rc2 + C_AdamantiumCost 
-			+ rc3 * C_AntimatterCost + rc4 * C_EnergyCostCost;
+		int totalCost = f_dispatcher.getPricelistManager().getResourcesCost(rc0, rc1, rc2, rc3);
+		f_dispatcher.trace("User " + user.getName() + " trying to buy resources for " + totalCost + " votes");
 		
 		f_dispatcher.getMoneyManager().beginTransactVotes(profile, totalCost, 
 				new Runnable() {

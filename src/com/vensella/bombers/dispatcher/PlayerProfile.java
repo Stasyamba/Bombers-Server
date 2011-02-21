@@ -45,6 +45,10 @@ public class PlayerProfile {
 	
 	public static final String C_SmallCount = "C";
 	
+	//Static fields
+	
+	public static ArrayList<Integer> LevelTable;
+	
 	//Constructors
 	
 	public PlayerProfile(String userId)
@@ -137,6 +141,19 @@ public class PlayerProfile {
 	public void setExperience(int experience) { f_experience = experience; }
 	public void addExperience(int delta) { f_experience += delta; }
 	
+	public int getLevel() {
+		if (LevelTable == null) return 1;
+		int level = 1;
+		for (int i = 0; i < LevelTable.size(); ++i) {
+			if (f_experience >= LevelTable.get(i)) {
+				level = i + 1;
+				continue;
+			}
+			if (f_experience < LevelTable.get(i)) break;
+		}
+		return level;
+	}
+	
 	public int getEnergy() { return f_energy; }
 	public void setEnergy(int energy) { f_energy = energy; }
 	public void addEnergy(int delta) { f_energy += delta; }
@@ -183,6 +200,9 @@ public class PlayerProfile {
 		} else { 
 			f_items.put(itemId, delta); 
 		} 
+	}
+	public void removeItem(int itemId) {
+		f_items.remove(itemId);
 	}
 
 	public boolean isLocationOpened(int locationId) { 

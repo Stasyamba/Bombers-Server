@@ -12,6 +12,10 @@ import com.smartfoxserver.v2.entities.data.SFSArray;
 
 public class DBQueryManager {
 	
+	//Constants
+	
+	//TODO: Make all queries as constants
+	
 	//Nested types
 	
 	private class QueuedQuery

@@ -199,17 +199,13 @@ public class BombersGame extends SFSExtension {
 		params.putUtfString("Id", user.getName());
 		params.putBool("IsReady", isReady);
 		send("game.lobby.readyChanged", params, getParentRoom().getPlayersList());
-		
-//		if (f_gameProfiles.size() == getParentRoom().getCapacity()) {
-//			trace("Starting game because all players says READY and room is full");
-//			prepareToStartGame();
-//		}
 		if (f_gameProfiles.size() == f_players.size() &&  f_gameProfiles.size() >= getParentRoom().getCapacity() / 2) {
 			trace("5 seconds to start situation");
 			SmartFoxServer.getInstance().getTaskScheduler().schedule(new Runnable() {
 				private int f_situationId = situationId;
 				@Override
 				public void run() {
+					//TODO: Use Lock object
 					synchronized (f_syncObject) {
 						if (f_10secondToStart == f_situationId) {
 							trace("Starting game because of 5 seconds passed");
@@ -297,8 +293,6 @@ public class BombersGame extends SFSExtension {
 				return;
 			}
 			f_gameId = GameEvent.INVALID_GAME_ID;
-		
-			//TODO: Calculate & send statistics
 			
 			SFSObject params = new SFSObject();
 			if (f_dieSequence.size() > 0) {

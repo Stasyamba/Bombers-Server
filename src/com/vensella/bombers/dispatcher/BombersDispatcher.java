@@ -17,15 +17,9 @@ import com.smartfoxserver.v2.core.SFSEventType;
 import com.smartfoxserver.v2.entities.Room;
 import com.smartfoxserver.v2.entities.SFSRoomRemoveMode;
 import com.smartfoxserver.v2.entities.User;
-import com.smartfoxserver.v2.entities.data.ISFSArray;
-import com.smartfoxserver.v2.entities.data.ISFSObject;
-import com.smartfoxserver.v2.entities.data.SFSArray;
-import com.smartfoxserver.v2.entities.data.SFSObject;
-import com.smartfoxserver.v2.entities.variables.RoomVariable;
-import com.smartfoxserver.v2.entities.variables.SFSRoomVariable;
-import com.smartfoxserver.v2.exceptions.SFSCreateRoomException;
-import com.smartfoxserver.v2.exceptions.SFSException;
-import com.smartfoxserver.v2.exceptions.SFSJoinRoomException;
+import com.smartfoxserver.v2.entities.data.*;
+import com.smartfoxserver.v2.entities.variables.*;
+import com.smartfoxserver.v2.exceptions.*;
 import com.smartfoxserver.v2.extensions.SFSExtension;
 import com.smartfoxserver.v2.util.ClientDisconnectionReason;
 
@@ -72,6 +66,7 @@ public class BombersDispatcher extends SFSExtension {
 	private InterfaceManager f_interfaceManager;
 	private MoneyManager f_moneyManager;
 	private MapManager f_mapManager;
+	private PricelistManager f_pricelistManager;
 	
 	//User tracking
 	
@@ -94,6 +89,7 @@ public class BombersDispatcher extends SFSExtension {
 		f_interfaceManager = new InterfaceManager(this);
 		f_moneyManager = new MoneyManager(this);
 		f_mapManager = new MapManager(this);
+		f_pricelistManager = new PricelistManager(this);
 		
 		f_profileCache = new ConcurrentHashMap<String, PlayerProfile>();
 		f_profiles = new ConcurrentHashMap<User, PlayerProfile>();
@@ -143,7 +139,8 @@ public class BombersDispatcher extends SFSExtension {
 								trace ("[Notice] Event dropped by kernel");
 							}
 						} catch (Exception ex) {
-							
+							trace("[Warning] " + ex.toString());
+							trace((Object[])ex.getStackTrace());
 						}
 					}
 				}
@@ -169,6 +166,7 @@ public class BombersDispatcher extends SFSExtension {
 //		
 		addRequestHandler("interface.buyResources", InterfaceBuyResourcesEventHandler.class);
 		addRequestHandler("interface.buyItem", InterfaceBuyItemEventHandler.class);
+		addRequestHandler("interface.dropItem", InterfaceDropItemEventHandler.class);
 //		addRequestHandler("interface.buyBomber", InterfaceBuyBomberEventHandler.class);
 		
 //		addRequestHandler("interface.setAura", null);
@@ -190,6 +188,7 @@ public class BombersDispatcher extends SFSExtension {
 	@Override
 	public void destroy()
 	{
+		//TODO: Free all resources (threads, timers, etc..)
 		super.destroy();
 		trace("Bombers zone dispatcher destroy()");
 	}
@@ -207,6 +206,8 @@ public class BombersDispatcher extends SFSExtension {
 	public InterfaceManager getInterfaceManager() { return f_interfaceManager; }
 	
 	public MapManager getMapManager() { return f_mapManager; }
+	
+	public PricelistManager getPricelistManager() { return f_pricelistManager; }
 	
 	//Event dispatching
 	
@@ -351,11 +352,11 @@ public class BombersDispatcher extends SFSExtension {
 			}
 		}
 		if (profile != null) {
-			ISFSObject params = profile.toSFSObject();
-			trace("User logged in");
-			trace(params.toJson());
-		
 			f_profiles.put(user, profile);
+			
+			ISFSObject params = profile.toSFSObject();
+			trace(params.toJson());
+			params.putSFSObject("Pricelist", f_pricelistManager.toSFSObject());
 			send("interface.gameProfileLoaded", params, user);
 		}
 	}
@@ -374,7 +375,7 @@ public class BombersDispatcher extends SFSExtension {
 	
 	public void findGameName(User user) {
 		SFSObject params = new SFSObject();
-		params.putUtfString("interface.gameManager.findGameName.result.gameName", findGameNameInternal());
+		params.putUtfString("interface.gameManager.findGameName.result.fields.gameName", findGameNameInternal());
 		send("interface.gameManager.findGameName.result", params, user);
 	}
 	
@@ -412,7 +413,8 @@ public class BombersDispatcher extends SFSExtension {
 						user, 
 						locations.get((int)(locations.size() * Math.random())), 
 						findGameNameInternal(), 
-						""
+						"",
+						false
 					);
 			}
 		} 
@@ -456,7 +458,8 @@ public class BombersDispatcher extends SFSExtension {
 	
 	public void createGame(User user, int locationId, String gameName, String password) {
 		try {
-			createGameInternal(user, locationId, gameName, password);
+			//TODO: Check for available locations
+			createGameInternal(user, locationId, gameName, password, true);
 		}
 		catch (SFSException ex) {
 			SFSObject params = new SFSObject();
@@ -465,14 +468,17 @@ public class BombersDispatcher extends SFSExtension {
 		}
 	}                                                                                    
 	
-	private void createGameInternal(User user, int locationId, String gameName, String password) 
+	private void createGameInternal(User user, int locationId, String gameName, String password, boolean createByUser) 
 		throws SFSCreateRoomException, SFSJoinRoomException {
 		CreateRoomSettings settings = new CreateRoomSettings();
 		RoomExtensionSettings extensionSettings 
 			= new RoomExtensionSettings("bombers", "com.vensella.bombers.game.BombersGame");
 		settings.setExtension(extensionSettings);
-		settings.setName(findGameNameInternal());
-		settings.setAutoRemoveMode(SFSRoomRemoveMode.NEVER_REMOVE);
+		settings.setName(gameName);
+		if (!createByUser)
+			settings.setAutoRemoveMode(SFSRoomRemoveMode.NEVER_REMOVE);
+		else
+			settings.setAutoRemoveMode(SFSRoomRemoveMode.WHEN_EMPTY_AND_CREATOR_IS_GONE);
 		settings.setMaxUsers(4);
 		if (password.isEmpty() == false) {
 			settings.setPassword(password);
