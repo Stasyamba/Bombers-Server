@@ -13,8 +13,11 @@ public class WeaponsManager {
 	public final int WEAPON_BOMB_ATOMIC = 1;
 	public final int WEAPON_BOMB_BOX = 2;
 	public final int WEAPON_BOMB_DYNAMITE = 3;
+	public final int WEAPON_BOMB_SMOKE = 4;
 	
 	public final int WEAPON_POISON_CHAMELEON = 21;
+	public final int WEAPON_POISON_SMALL_HEALTH = 22;
+	public final int WEAPON_POISON_MIDDLE_HEALTH = 23;
 	
 	public final int WEAPON_MINE_NORMAL = 41;
 	
@@ -56,11 +59,22 @@ public class WeaponsManager {
 		case WEAPON_BOMB_DYNAMITE:
 			addBombDynamite(user, weaponId, x, y);
 			break;
+		case WEAPON_BOMB_SMOKE:
+			addBombSmoke(user, weaponId, x, y);
+			break;
 	
 		//Poisons	
 		
 		case WEAPON_POISON_CHAMELEON:
 			drinkPoisonChameleon(user, weaponId, x, y);
+			break;
+			
+		case WEAPON_POISON_SMALL_HEALTH:
+			drinkPoisonSmallHealth(user, weaponId, x, y);
+			break;
+			
+		case WEAPON_POISON_MIDDLE_HEALTH:
+			drinkPoisonMiddleHealth(user, weaponId, x, y);
 			break;
 		
 		//Mines
@@ -395,6 +409,48 @@ public class WeaponsManager {
 		});				
 	}
 	
+	protected void addBombSmoke(final User user, final int weaponId, final int x, final int y) {
+		final PlayerGameProfile profile = f_game.getGameProfile(user);
+		f_game.addGameEvent(new GameEvent(f_game) {
+			@Override
+			protected void ApplyOnGame(final BombersGame game, final DynamicGameMap map) {
+				DynamicObject obj  = map.getDynamicObject(x, y);
+				if (obj == null && withdrawWeapon(profile, weaponId)) {
+					obj = new DynamicObject(f_game, false, false) {
+						@Override
+						public GameEvent getActivateEvent() {
+							return new GameEvent(f_game) {
+								@Override
+								protected void ApplyOnGame(BombersGame game, DynamicGameMap map) {
+									setActivated(true);
+		
+									map.removeDynamicObject(x, y);
+									
+									SFSObject params = new SFSObject();
+									params.putUtfString("game.DOAct.f.userId", user.getName());
+									params.putInt("game.DOAct.f.type", weaponId);
+									params.putInt("game.DOAct.f.x", x);
+									params.putInt("game.DOAct.f.y", y);
+									params.putBool("game.DOAct.f.isRemoved", true);
+									f_game.send("game.DOAct", params, f_game.getParentRoom().getPlayersList());	
+								}
+							};
+						}
+					};
+					map.setDynamicObject(x, y, obj);
+					f_game.addDelayedGameEvent(obj.getActivateEvent(), 1266);
+
+					SFSObject params = new SFSObject();
+					params.putUtfString("game.DOAdd.f.userId", user.getName());
+					params.putInt("game.DOAdd.f.type", weaponId);
+					params.putInt("game.DOAdd.f.x", x);
+					params.putInt("game.DOAdd.f.y", y);
+					f_game.send("game.DOAdd", params, f_game.getParentRoom().getPlayersList());
+				}
+			} 
+		});
+	}
+	
 	//Mines
 	
 	protected void addMineNormal(final User user, final int weaponId, final int x, final int y) {
@@ -458,6 +514,44 @@ public class WeaponsManager {
 							f_game.send("game.WDA", params, f_game.getParentRoom().getPlayersList());							
 						}
 					}, 20000);
+					
+					SFSObject params = new SFSObject();
+					params.putUtfString("game.WA.f.userId", user.getName());
+					params.putInt("game.WA.f.type", weaponId);
+					params.putInt("game.WA.f.x", x);
+					params.putInt("game.WA.f.y", y);
+					f_game.send("game.WA", params, f_game.getParentRoom().getPlayersList());
+				}
+			}
+		});
+	}
+	
+	protected void drinkPoisonSmallHealth(final User user, final int weaponId, final int x, final int y) {
+		final PlayerGameProfile profile = f_game.getGameProfile(user);
+		f_game.addGameEvent(new GameEvent(f_game) {
+			@Override
+			protected void ApplyOnGame(BombersGame game, DynamicGameMap map) {
+				if (withdrawWeapon(profile, weaponId)) {
+					profile.addHealth(1);
+					
+					SFSObject params = new SFSObject();
+					params.putUtfString("game.WA.f.userId", user.getName());
+					params.putInt("game.WA.f.type", weaponId);
+					params.putInt("game.WA.f.x", x);
+					params.putInt("game.WA.f.y", y);
+					f_game.send("game.WA", params, f_game.getParentRoom().getPlayersList());
+				}
+			}
+		});
+	}
+	
+	protected void drinkPoisonMiddleHealth(final User user, final int weaponId, final int x, final int y) {
+		final PlayerGameProfile profile = f_game.getGameProfile(user);
+		f_game.addGameEvent(new GameEvent(f_game) {
+			@Override
+			protected void ApplyOnGame(BombersGame game, DynamicGameMap map) {
+				if (withdrawWeapon(profile, weaponId)) {
+					profile.addHealth(2);
 					
 					SFSObject params = new SFSObject();
 					params.putUtfString("game.WA.f.userId", user.getName());
