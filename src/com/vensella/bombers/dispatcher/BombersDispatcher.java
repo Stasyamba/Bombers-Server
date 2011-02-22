@@ -8,9 +8,9 @@ import java.sql.PreparedStatement;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-import com.smartfoxserver.v2.SmartFoxServer;
 import com.smartfoxserver.v2.api.CreateRoomSettings;
 import com.smartfoxserver.v2.api.CreateRoomSettings.RoomExtensionSettings;
 import com.smartfoxserver.v2.core.SFSEventType;
@@ -45,8 +45,8 @@ public class BombersDispatcher extends SFSExtension {
 	
 	private static final String C_GameGroupId = "Games";
 	
-	private static final int C_WorkingThreadCount = 2;
-	//private static final int C_DelayedEventTimersCount = 1;
+	private static final int C_WorkingThreadCount = 4;
+	private static final int C_DelayedEventTimersCount = 1;
 	
 	//Special volatile fields
 	
@@ -56,6 +56,7 @@ public class BombersDispatcher extends SFSExtension {
 	//Event model fields
 	
 	private Timer f_ticksTimer;
+	private ScheduledThreadPoolExecutor f_delayedEventsExecutor;
 	
 	private Thread[] f_workingThreads;
 	private LinkedBlockingQueue<GameEvent>[] f_workingQueues;
@@ -119,6 +120,7 @@ public class BombersDispatcher extends SFSExtension {
 			}
 		}, 0, 1000);
 		
+		f_delayedEventsExecutor = new ScheduledThreadPoolExecutor(C_DelayedEventTimersCount);
 		
 		f_workingQueues = (LinkedBlockingQueue<GameEvent>[])Array.newInstance(
 				LinkedBlockingQueue.class, 
@@ -221,9 +223,7 @@ public class BombersDispatcher extends SFSExtension {
 	
 	public void addDelayedGameEvent(final GameEvent event, final int scheduleIndex, int delay)
 	{
-		//TODO: Use separate timer(or thread pool executor) for delayed events
-		SmartFoxServer sfs = SmartFoxServer.getInstance();	
-		sfs.getTaskScheduler().schedule(new Runnable() {
+		f_delayedEventsExecutor.schedule(new Runnable() {
 			@Override
 			public void run() {
 				addGameEvent(event, scheduleIndex);

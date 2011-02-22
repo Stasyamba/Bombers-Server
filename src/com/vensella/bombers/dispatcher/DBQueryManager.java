@@ -37,9 +37,6 @@ public class DBQueryManager {
 		"update `Users` set `Gold` = `Gold` - ?, `Crystal` = `Crystal` - ?, `Adamantium` = `Adamantium` - ?, " +
 		"`Antimatter` = `Antimatter` - ?, `Energy` = `Energy` - ? where `Id` = ?";
 	
-	
-	//TODO: Make all queries as constants
-	
 	//Nested types
 	
 	private class QueuedQuery
