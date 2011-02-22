@@ -16,6 +16,7 @@ public class UserJoinZoneEventHandler extends BaseServerEventHandler {
 	public void handleServerEvent(ISFSEvent event) throws SFSException {
 		BombersDispatcher dispatcher = (BombersDispatcher)getParentExtension();
 		User user = (User)event.getParameter(SFSEventParam.USER);
+		//TODO: Login user asynchronously 
 		dispatcher.loginUser(user);	
 	}
 

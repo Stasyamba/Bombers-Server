@@ -181,7 +181,7 @@ public class PricelistManager {
 		
 		//<levels>
 		Element levelsElement = (Element)(rootElement.getElementsByTagName("levels").item(0));
-		nl = levelsElement.getElementsByTagName("levels");
+		nl = levelsElement.getElementsByTagName("level");
 		for (int i = 0; i < nl.getLength(); ++i) {
 			Element levelElement = (Element)nl.item(i);
 			f_levels.add(Integer.parseInt(levelElement.getAttribute("exp")));
@@ -191,6 +191,10 @@ public class PricelistManager {
 	}
 	
 	//Methods
+	
+	public ArrayList<Integer> getLevelsInfo() {
+		return new ArrayList<Integer>(f_levels);
+	}
 	
 	public int getResourcesCost(int gold, int crystal, int adamantium, int antimatter) {
 		int baseCost = f_goldCost * gold + f_crystalCost * crystal + f_adamantiumCost * adamantium + 
@@ -234,18 +238,18 @@ public class PricelistManager {
 		profile.addAntimatter(-itemCost.getAntimatter());
 		profile.addItems(itemId, itemCost.getStack());
 		
-		String sql = "update `WeaponsOpen` set `WeaponsOpen` = ? where `UserId` = ?";
+		String sql = DBQueryManager.SqlUpdatePlayerItems;
 		f_dispatcher.getDbManager().ScheduleUpdateQuery(
-				null, sql, new Object[] {profile.getItemsData().toJson(), profile.getId() });
-		sql  = String.format(
-				"update `Users` set `%1$s` = `%1$s` - %2$s, `%3$s` = `%3$s` - %4$s, `%5$s` = `%5$s` - %6$s, " +
-				"`%7$s` = `%7$s` - %8$s where `%9$s` = ?", 
-				PlayerProfile.C_Gold, itemCost.getGold(), 
-				PlayerProfile.C_Crystal, itemCost.getCrystal(), 
-				PlayerProfile.C_Adamantium, itemCost.getAdamantium(), 
-				PlayerProfile.C_Antimatter, itemCost.getAntimatter(), 
-				PlayerProfile.C_Id);
-		f_dispatcher.getDbManager().ScheduleUpdateQuery(null, sql, new Object[] {profile.getId()});
+				sql, new Object[] {profile.getItemsData().toJson(), profile.getId() });
+		sql  = DBQueryManager.SqlSubtractPlayerResources;
+		f_dispatcher.getDbManager().ScheduleUpdateQuery(sql, new Object[] {
+				itemCost.getGold(), 
+				itemCost.getCrystal(), 
+				itemCost.getAdamantium(), 
+				itemCost.getAntimatter(), 
+				0,
+				profile.getId()
+			});
 		
 		return itemCost.getStack();
 	}
@@ -302,7 +306,7 @@ public class PricelistManager {
 			for (Integer exp : f_levels) {
 				levels.addInt(exp);
 			}
-			f_sfsObject.putSFSArray("Levels", items);
+			f_sfsObject.putSFSArray("Levels", levels);
 		}
 		return f_sfsObject;
 	}

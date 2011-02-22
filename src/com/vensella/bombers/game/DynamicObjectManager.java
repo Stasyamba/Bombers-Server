@@ -34,8 +34,6 @@ public class DynamicObjectManager {
 	//Methods
 	
 	public void setWallBlocksCount(int wallBlocks) {
-		//TODO: Fix re-initializing bonus counts
-		
 		f_countAddBomb = 8;
 		f_countAddPower = 8;
 		f_countAddSpeed = 8;

@@ -21,8 +21,8 @@ public class InterfaceManager {
 	public void dropItem(User user, int itemId) {
 		PlayerProfile profile = f_dispatcher.getUserProfile(user);
 		profile.removeItem(itemId);
-		String sql = "update `WeaponsOpen` set `WeaponsOpen` = ? where `UserId` = ?";
-		f_dispatcher.getDbManager().ScheduleUpdateQuery(null, sql, new Object[]{ 
+		String sql = DBQueryManager.SqlUpdatePlayerItems;
+		f_dispatcher.getDbManager().ScheduleUpdateQuery(sql, new Object[]{ 
 				profile.getItemsData().toJson(),
 				profile.getId()
 		});
@@ -57,6 +57,11 @@ public class InterfaceManager {
 	{
 		final PlayerProfile profile = f_dispatcher.getUserProfile(user);
 		int totalCost = f_dispatcher.getPricelistManager().getResourcesCost(rc0, rc1, rc2, rc3);
+		if (rc4 != 0) {
+			if (rc0 != 0 || rc1 != 0 || rc2 != 0 || rc3 != 0) return;
+			totalCost = f_dispatcher.getPricelistManager().getEnergyCost(rc4);
+		}
+		
 		f_dispatcher.trace("User " + user.getName() + " trying to buy resources for " + totalCost + " votes");
 		
 		f_dispatcher.getMoneyManager().beginTransactVotes(profile, totalCost, 
@@ -71,14 +76,15 @@ public class InterfaceManager {
 						profile.addAntimatter(rc3);
 						profile.addEnergy(rc4);
 						
-						String sql  = String.format(
-								"update `Users` set `%1$s` = `%1$s` + %2$s, `%3$s` = `%3$s` + %4$s, `%5$s` = `%5$s` + %6$s, " +
-								"`%7$s` = `%7$s` + %8$s, `%9$s` = `%9$s` + %10$s where `%11$s` = ?", 
-								PlayerProfile.C_Gold, rc0, PlayerProfile.C_Crystal, rc1, PlayerProfile.C_Adamantium, rc2, 
-								PlayerProfile.C_Antimatter, rc3, PlayerProfile.C_Energy, rc4,
-								PlayerProfile.C_Id);
-						f_dispatcher.getDbManager().ScheduleUpdateQuery(null, sql, new Object[] {profile.getId()});
-						//f_dispatcher.getParentZone().getDBManager().executeUpdate(sql);
+						String sql = DBQueryManager.SqlAddPlayerResources;
+						f_dispatcher.getDbManager().ScheduleUpdateQuery(sql, new Object[] {
+								rc0,
+								rc1,
+								rc2,
+								rc3,
+								rc4,
+								profile.getId()
+							});
 						
 						SFSObject params = new SFSObject();
 						params.putBool("interface.buyResources.result.fields.status", true);

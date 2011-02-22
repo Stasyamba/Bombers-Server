@@ -122,8 +122,8 @@ public class BombersGame extends SFSExtension {
 	}
 	
 	private void savePlayerGameResultToDb(PlayerGameProfile profile) {
-		String sql = "update `WeaponsOpen` set `WeaponsOpen` = ? where `UserId` = ?";
-		f_dispatcher.getDbManager().ScheduleUpdateQuery(null, sql, new Object[]{ 
+		String sql = DBQueryManager.SqlUpdatePlayerItems;
+		f_dispatcher.getDbManager().ScheduleUpdateQuery(sql, new Object[]{ 
 				profile.getBaseProfile().getItemsData().toJson(),
 				profile.getBaseProfile().getId()
 		});
@@ -226,7 +226,6 @@ public class BombersGame extends SFSExtension {
 		
 		f_isGameStarted = true;
 		
-		//TODO: Remove debug code
 		RoomVariable isGameStartedVariable = new SFSRoomVariable("IsGameStarted", true, false, true, true);
 		ArrayList<RoomVariable> roomVariables = new ArrayList<RoomVariable>();
 		roomVariables.add(isGameStartedVariable);
@@ -310,7 +309,6 @@ public class BombersGame extends SFSExtension {
 			f_gameProfiles.clear();
 			f_isGameStarted = false;
 			
-			//TODO: Remove debug code
 			RoomVariable isGameStartedVariable = new SFSRoomVariable("IsGameStarted", false, false, true, true);
 			ArrayList<RoomVariable> roomVariables = new ArrayList<RoomVariable>();
 			roomVariables.add(isGameStartedVariable);

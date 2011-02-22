@@ -14,6 +14,30 @@ public class DBQueryManager {
 	
 	//Constants
 	
+	public static final String SqlSelectPlayerData = "select * from `Users` where `Id` = ?";
+	public static final String SqlSelectPlayerLocations = "select * from `LocationsOpen` where `UserId` = ?";
+	public static final String SqlSelectPlayerBombers = "select * from `BombersOpen` where `UserId` =  ?";
+	public static final String SqlSelectPlayerItems = "select * from `WeaponsOpen` where `UserId` = ?";
+	
+	public static final String SqlInsertPlayerData = "insert into `Users` (`Id`) values (?)";
+	public static final String SqlInsertPlayerLocations = "insert into `LocationsOpen` (`UserId`, `LocationsOpen`) values (?, ?)";
+	public static final String SqlInsertPlayerBombers = "insert into `BombersOpen` (`UserId`, `BombersOpen`) values (?, ?)";
+	public static final String SqlInsertPlayerItems = "insert into `WeaponsOpen` (`UserId`, `WeaponsOpen`) values (?, ?)";
+	
+	public static final String SqlUpdateUserDataWhenUserDisconnects = 
+		"update `Users` set `Experience` = ?, " +
+		"`Nick` = ?, `AuraOne` = ?, `AuraTwo` = ?, `AuraThree` = ?, " +
+		"`RightHand` = ?, `BomberId` = ?, `Photo` = ? where `Id` = ?";
+	
+	public static final String SqlUpdatePlayerItems = "update `WeaponsOpen` set `WeaponsOpen` = ? where `UserId` = ?";
+	public static final String SqlAddPlayerResources = 
+		"update `Users` set `Gold` = `Gold` + ?, `Crystal` = `Crystal` + ?, `Adamantium` = `Adamantium` + ?, " +
+		"`Antimatter` = `Antimatter` + ?, `Energy` = `Energy` + ? where `Id` = ?";
+	public static final String SqlSubtractPlayerResources = 
+		"update `Users` set `Gold` = `Gold` - ?, `Crystal` = `Crystal` - ?, `Adamantium` = `Adamantium` - ?, " +
+		"`Antimatter` = `Antimatter` - ?, `Energy` = `Energy` - ? where `Id` = ?";
+	
+	
 	//TODO: Make all queries as constants
 	
 	//Nested types
@@ -68,9 +92,13 @@ public class DBQueryManager {
 			public void run() {
 				while (true){
 					QueryCallback cb = null;
+					String sql = null;
+					Object[] params = null;
 					try
 					{
 						QueuedQuery q = f_queue.take();
+						sql = q.getQuery();
+						params = q.getParams();
 						cb = q.getCallback();
 						Connection conn = f_dispatcher.getParentZone().getDBManager().getConnection();
 						try {
@@ -100,6 +128,13 @@ public class DBQueryManager {
 					catch(Exception ex)
 					{
 						f_dispatcher.trace("[WARNING] Db query exception:");
+						if (sql != null) {
+							f_dispatcher.trace(sql);
+						}
+						if (params != null) {
+							for (int i = 0; i < params.length; ++i) if (params[i] == null) params[i] = "$NULL$";
+							f_dispatcher.trace(params);
+						}
 						f_dispatcher.trace(ex.getMessage());
 						f_dispatcher.trace((Object[])ex.getStackTrace());
 						if (cb != null)
@@ -114,13 +149,17 @@ public class DBQueryManager {
 	
 	//Methods
 	
-	public void ScheduleUpdateQuery(QueryCallback callback, String query, Object[] params)
+	public void ScheduleUpdateQuery(String query, Object[] params) {
+		ScheduleUpdateQuery(query, params, null);
+	}
+	
+	public void ScheduleUpdateQuery(String query, Object[] params, QueryCallback callback)
 	{
 		QueuedQuery q = new QueuedQuery(true, callback, query, params);
 		f_queue.add(q);
 	}
 	
-	public void ScheduleQuery(QueryCallback callback, String query, Object[] params)
+	public void ScheduleQuery(String query, Object[] params, QueryCallback callback)
 	{
 		assert callback != null;
 		QueuedQuery q = new QueuedQuery(false, callback, query, params);

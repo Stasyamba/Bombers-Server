@@ -20,6 +20,7 @@ import com.smartfoxserver.v2.entities.User;
 import com.smartfoxserver.v2.entities.data.*;
 import com.smartfoxserver.v2.entities.variables.*;
 import com.smartfoxserver.v2.exceptions.*;
+import com.smartfoxserver.v2.extensions.ExtensionLogLevel;
 import com.smartfoxserver.v2.extensions.SFSExtension;
 import com.smartfoxserver.v2.util.ClientDisconnectionReason;
 
@@ -139,8 +140,9 @@ public class BombersDispatcher extends SFSExtension {
 								trace ("[Notice] Event dropped by kernel");
 							}
 						} catch (Exception ex) {
-							trace("[Warning] " + ex.toString());
-							trace((Object[])ex.getStackTrace());
+							//TODO: Add trace attributes
+							trace(ExtensionLogLevel.ERROR, "[Warning] " + ex.toString());
+							trace(ExtensionLogLevel.ERROR, (Object[])ex.getStackTrace());
 						}
 					}
 				}
@@ -188,6 +190,7 @@ public class BombersDispatcher extends SFSExtension {
 	@Override
 	public void destroy()
 	{
+		//TODO: Inform users about server reset
 		//TODO: Free all resources (threads, timers, etc..)
 		super.destroy();
 		trace("Bombers zone dispatcher destroy()");
@@ -218,6 +221,7 @@ public class BombersDispatcher extends SFSExtension {
 	
 	public void addDelayedGameEvent(final GameEvent event, final int scheduleIndex, int delay)
 	{
+		//TODO: Use separate timer(or thread pool executor) for delayed events
 		SmartFoxServer sfs = SmartFoxServer.getInstance();	
 		sfs.getTaskScheduler().schedule(new Runnable() {
 			@Override
@@ -233,10 +237,8 @@ public class BombersDispatcher extends SFSExtension {
 	
 	private void saveProfileToDb(User user) {
 		PlayerProfile profile = getUserProfile(user);
-		String sql = "update `Users` set `Experience` = ?, " +
-				"`Nick` = ?, `AuraOne` = ?, `AuraTwo` = ?, `AuraThree` = ?, " +
-				"`RightHand` = ?, `BomberId` = ?, `Photo` = ? where `Id` = ?";
-		f_dbQueryManager.ScheduleUpdateQuery(null, sql, new Object[] {
+		String sql = DBQueryManager.SqlUpdateUserDataWhenUserDisconnects;
+		f_dbQueryManager.ScheduleUpdateQuery(sql, new Object[] {
 				profile.getExperience(),
 				profile.getNick(),
 				profile.getAuraOne(),
@@ -257,28 +259,28 @@ public class BombersDispatcher extends SFSExtension {
 			try {
 				conn = getParentZone().getDBManager().getConnection();
 				
-				PreparedStatement st = conn.prepareStatement("select * from `Users` where `Id` = ?");
+				PreparedStatement st = conn.prepareStatement(DBQueryManager.SqlSelectPlayerData);
 				st.setString(1, userId);
 				SFSArray profileData = SFSArray.newFromResultSet(st.executeQuery());
 				if (profileData.size() == 0) {
 					conn.setAutoCommit(false);
 					
-					st = conn.prepareStatement("insert into `Users` (`Id`) values (?)");
+					st = conn.prepareStatement(DBQueryManager.SqlInsertPlayerData);
 					st.setString(1, userId);
 					st.executeUpdate();
 					
 					String dummyJson = SFSArray.newInstance().toJson();
-					st = conn.prepareStatement("insert into `LocationsOpen` (`UserId`, `LocationsOpen`) values (?, ?)");
+					st = conn.prepareStatement(DBQueryManager.SqlInsertPlayerLocations);
 					st.setString(1, userId);
 					st.setString(2, dummyJson);
 					st.executeUpdate();
 					
-					st = conn.prepareStatement("insert into `BombersOpen` (`UserId`, `BombersOpen`) values (?, ?)");
+					st = conn.prepareStatement(DBQueryManager.SqlInsertPlayerBombers);
 					st.setString(1, userId);
 					st.setString(2, dummyJson);
 					st.executeUpdate();
 					
-				    st = conn.prepareStatement("insert into `WeaponsOpen` (`UserId`, `WeaponsOpen`) values (?, ?)");
+				    st = conn.prepareStatement(DBQueryManager.SqlInsertPlayerItems);
 					st.setString(1, userId);
 					st.setString(2, dummyJson);
 					st.executeUpdate();
@@ -287,19 +289,19 @@ public class BombersDispatcher extends SFSExtension {
 					
 					profile = new PlayerProfile(userId);
 				} else {
-					st = conn.prepareStatement("select * from `LocationsOpen` where `UserId` = ?");
+					st = conn.prepareStatement(DBQueryManager.SqlSelectPlayerLocations);
 					st.setString(1, userId);
 					ISFSArray locationsData = SFSArray.newFromJsonData(
 						SFSArray.newFromResultSet(st.executeQuery()).getSFSObject(0).getUtfString("LocationsOpen")
 					);
 					
-					st = conn.prepareStatement("select * from `BombersOpen` where `UserId` =  ?");
+					st = conn.prepareStatement(DBQueryManager.SqlSelectPlayerBombers);
 					st.setString(1, userId);
 					ISFSArray bombersData = SFSArray.newFromJsonData(
 						SFSArray.newFromResultSet(st.executeQuery()).getSFSObject(0).getUtfString("BombersOpen")
 					);
 					
-					st = conn.prepareStatement("select * from `WeaponsOpen` where `UserId` = ?");
+					st = conn.prepareStatement(DBQueryManager.SqlSelectPlayerItems);
 					st.setString(1, userId);
 					ISFSArray itemsData = SFSArray.newFromJsonData(
 						SFSArray.newFromResultSet(st.executeQuery()).getSFSObject(0).getUtfString("WeaponsOpen")
@@ -389,7 +391,6 @@ public class BombersDispatcher extends SFSExtension {
 		List<Integer> locations = Locations.findBestLocations(profile);
 		
 		//Find room with minimal experience difference
-		//TODO: Add features
 		
 		Room bestRoom = null;
 		int currentMinExpDiff = Integer.MAX_VALUE;
@@ -458,8 +459,10 @@ public class BombersDispatcher extends SFSExtension {
 	
 	public void createGame(User user, int locationId, String gameName, String password) {
 		try {
-			//TODO: Check for available locations
-			createGameInternal(user, locationId, gameName, password, true);
+			PlayerProfile profile = getUserProfile(user);
+			if (profile.isLocationOpened(locationId)) {
+				createGameInternal(user, locationId, gameName, password, true);
+			}
 		}
 		catch (SFSException ex) {
 			SFSObject params = new SFSObject();
