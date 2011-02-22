@@ -391,7 +391,6 @@ public class BombersDispatcher extends SFSExtension {
 		List<Integer> locations = Locations.findBestLocations(profile);
 		
 		//Find room with minimal experience difference
-		
 		Room bestRoom = null;
 		int currentMinExpDiff = Integer.MAX_VALUE;
 		for (Room room : rooms) {
@@ -427,10 +426,43 @@ public class BombersDispatcher extends SFSExtension {
 	}
 	
 	public void fastJoin(User user, int locationId) {
-		//TODO: Fast join on location
-		SFSObject params = new SFSObject();
-		params.putBool("interface.gameManager.fastJoin.result.fields.status", false);
-		send("interface.gameManager.fastJoin.result", params, user);
+		PlayerProfile profile = getUserProfile(user);
+		if (profile.isLocationOpened(locationId) == false) return;
+		List<Room> rooms = new ArrayList<Room>(getParentZone().getRoomListFromGroup(C_GameGroupId));
+		
+		//Find room with minimal experience difference
+		Room bestRoom = null;
+		int currentMinExpDiff = Integer.MAX_VALUE;
+		for (Room room : rooms) {
+			if (room.isFull() || room.isPasswordProtected()) continue;
+			BombersGame game = (BombersGame)room.getExtension();
+			if (game.isGameStarted()) continue;
+			if (game.getLocationId() == locationId) {
+				int expDiff = game.getAbsoluteExperienceDifference(profile.getExperience());
+				if (expDiff < currentMinExpDiff) {
+					currentMinExpDiff = expDiff;
+					bestRoom = room;
+				}
+			}
+		}
+		try {
+			if (bestRoom != null) {
+				getApi().joinRoom(user, bestRoom);
+			} else {
+				createGameInternal(
+						user, 
+						locationId, 
+						findGameNameInternal(), 
+						"",
+						false
+					);
+			}
+		} 
+		catch (SFSException ex) {
+			SFSObject params = new SFSObject();
+			params.putBool("interface.gameManager.fastJoin.result.fields.status", false);
+			send("interface.gameManager.fastJoin.result", params, user);
+		}
 	}
 	
 	public void fastJoin(User user, String gameName, String password) {
