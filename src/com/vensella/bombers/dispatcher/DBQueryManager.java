@@ -14,10 +14,14 @@ public class DBQueryManager {
 	
 	//Constants
 	
+	public static final String SqlSelectPlayerExistance = "select count(*) as `C` from `Users` where `Id` = ?";
+	
 	public static final String SqlSelectPlayerData = "select * from `Users` where `Id` = ?";
 	public static final String SqlSelectPlayerLocations = "select * from `LocationsOpen` where `UserId` = ?";
 	public static final String SqlSelectPlayerBombers = "select * from `BombersOpen` where `UserId` =  ?";
 	public static final String SqlSelectPlayerItems = "select * from `WeaponsOpen` where `UserId` = ?";
+	
+	public static final String SqlSelectPrizeForInviting = "select * from `PrizesFromWall` where `PrizeActivatorId` = ?";
 	
 	public static final String SqlInsertPlayerData = "insert into `Users` (`Id`) values (?)";
 	public static final String SqlInsertPlayerLocations = "insert into `LocationsOpen` (`UserId`, `LocationsOpen`) values (?, ?)";
@@ -25,9 +29,9 @@ public class DBQueryManager {
 	public static final String SqlInsertPlayerItems = "insert into `WeaponsOpen` (`UserId`, `WeaponsOpen`) values (?, ?)";
 	
 	public static final String SqlUpdateUserDataWhenUserDisconnects = 
-		"update `Users` set `Experience` = ?, " +
+		"update `Users` set `Experience` = ?,  `Energy` = ?, " +
 		"`Nick` = ?, `AuraOne` = ?, `AuraTwo` = ?, `AuraThree` = ?, " +
-		"`RightHand` = ?, `BomberId` = ?, `Photo` = ? where `Id` = ?";
+		"`RightHand` = ?, `BomberId` = ?, `Photo` = ?, `LastLogin` = ?, `LuckCount` = ? where `Id` = ?";
 	
 	public static final String SqlUpdatePlayerItems = "update `WeaponsOpen` set `WeaponsOpen` = ? where `UserId` = ?";
 	public static final String SqlAddPlayerResources = 
@@ -36,6 +40,18 @@ public class DBQueryManager {
 	public static final String SqlSubtractPlayerResources = 
 		"update `Users` set `Gold` = `Gold` - ?, `Crystal` = `Crystal` - ?, `Adamantium` = `Adamantium` - ?, " +
 		"`Antimatter` = `Antimatter` - ?, `Energy` = `Energy` - ? where `Id` = ?";
+	public static final String SqlAddPlayerResourcesPrize = 
+		"update `Users` set `GoldPrize` = `GoldPrize` + ?, `CrystalPrize` = `CrystalPrize` + ?, " +
+		"`AdamantiumPrize` = `AdamantiumPrize` + ?, " +
+		"`AntimatterPrize` = `AntimatterPrize` + ? where `Id` = ?";
+	public static final String SqlTakePrize = "update `Users` set " +
+			"`Gold` = `Gold` + ?, `GoldPrize` = `GoldPrize` - ?, " + 
+			"`Crystal` = `Crystal` + ?, `CrystalPrize` = `CrystalPrize` - ?, " + 
+			"`Adamantium` = `Adamantium` + ?, `AdamantiumPrize` = `AdamantiumPrize` - ?, " + 
+			"`Antimatter` = `Antimatter` + ?, `AntimatterPrize` = `AntimatterPrize` - ? " +
+			"where `Id` = ?";
+	
+	public static final String SqlInsertPrizeFromWall = "insert into `PrizesFromWall` values (?, ?, ?)";
 	
 	//Nested types
 	

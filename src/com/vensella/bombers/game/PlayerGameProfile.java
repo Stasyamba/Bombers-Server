@@ -11,7 +11,6 @@ public class PlayerGameProfile {
 	//Fields
 	
 	private boolean f_isAlive = true;
-	private int f_gameRank;
 	
 	private PlayerProfile f_baseGameProfile;
 	
@@ -64,9 +63,6 @@ public class PlayerGameProfile {
 	
 	public boolean isAlive() { return f_isAlive; }
 	public void setIsAlive(boolean isAlive) { f_isAlive = isAlive; }
-	
-	public int getGameRank() { return f_gameRank; }
-	public void setGameRank(int gameRank) { f_gameRank = gameRank; }
 	
 	public int getBomberId() { return f_bomberId; }
 	public int getAuraOne() { return f_auraOne; }

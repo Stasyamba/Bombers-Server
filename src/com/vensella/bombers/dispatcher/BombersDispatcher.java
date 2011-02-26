@@ -1,9 +1,9 @@
 package com.vensella.bombers.dispatcher;
 
 import java.lang.reflect.Array;
-import java.security.MessageDigest;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.SQLException;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -31,21 +31,22 @@ import com.vensella.bombers.game.mapObjects.Locations;
 
 public class BombersDispatcher extends SFSExtension {
 	
+	//Public constants
+	//TODO: Load from configuration
+	
+	public static final String C_ApiId = "2141693";
+	public static final String C_ApiSecret = "jqKgEDXPd4T2zojPaRcv";
 	
 	//Flags
 	
 	private static Boolean IsReleaseMode = false;
 	//private static Boolean IsDebugMode = true;
 	
-	//Special
-	
-	private MessageDigest MD5; 
-	
 	//Constants
 	
 	private static final String C_GameGroupId = "Games";
 	
-	private static final int C_WorkingThreadCount = 4;
+	private static final int C_WorkingThreadCount = 3;
 	private static final int C_DelayedEventTimersCount = 1;
 	
 	//Special volatile fields
@@ -60,7 +61,6 @@ public class BombersDispatcher extends SFSExtension {
 	
 	private Thread[] f_workingThreads;
 	private LinkedBlockingQueue<GameEvent>[] f_workingQueues;
-	//private Timer[] f_delayedEventsTimers;
 	
 	//Managers
 	
@@ -75,6 +75,12 @@ public class BombersDispatcher extends SFSExtension {
 	private Map<String, PlayerProfile> f_profileCache;
 	private Map<User, PlayerProfile> f_profiles;
 	
+	private Map<String, SFSObject> f_prizesCache;
+	
+	//Game settings
+	
+	private int C_LuckCountPerDay = 3;
+	
 	//Constructors and initializers
 	
 	@SuppressWarnings("unchecked")
@@ -85,8 +91,6 @@ public class BombersDispatcher extends SFSExtension {
 		
 		//Initialize fields
 		
-		//f_roomParametres = new ConcurrentHashMap<String, Integer>();
-		
 		f_dbQueryManager = new DBQueryManager(this);
 		f_interfaceManager = new InterfaceManager(this);
 		f_moneyManager = new MoneyManager(this);
@@ -96,19 +100,7 @@ public class BombersDispatcher extends SFSExtension {
 		f_profileCache = new ConcurrentHashMap<String, PlayerProfile>();
 		f_profiles = new ConcurrentHashMap<User, PlayerProfile>();
 		
-		//Initialize special fields
-		
-		try
-		{
-			MD5 = MessageDigest.getInstance("MD5");
-		}
-		catch (Exception ex)
-		{
-			trace("[ERROR] MD5 can't be initialized!");
-			trace(ex.getMessage());
-			trace((Object[])ex.getStackTrace());
-		}
-		
+		f_prizesCache = new ConcurrentHashMap<String, SFSObject>();
 		
 		//Initialize of internal structure
 		
@@ -183,8 +175,9 @@ public class BombersDispatcher extends SFSExtension {
 //		addRequestHandler("inerface.playSingleGame", null);
 //		addRequestHandler("inerface.takeSingleGamePrize", null);
 
-		
-		
+		addRequestHandler("interface.takePrize", InterfaceTakePrizeEventHandler.class);
+		addRequestHandler("interface.tryLuck", InterfaceTryLuckEventHandler.class);
+		addRequestHandler("interface.buyLuck", InterfaceBuyLuckEventHandler.class);
 		 		
 		trace("Bombers zone dispatcher init() end");
 	}
@@ -201,8 +194,6 @@ public class BombersDispatcher extends SFSExtension {
 	//Special methods
 	
 	public int getTicksCount() { return TicksCount;	}
-	
-	public MessageDigest getMD5() { return MD5;	}
 	
 	public MoneyManager getMoneyManager() { return f_moneyManager; }
 	
@@ -240,6 +231,7 @@ public class BombersDispatcher extends SFSExtension {
 		String sql = DBQueryManager.SqlUpdateUserDataWhenUserDisconnects;
 		f_dbQueryManager.ScheduleUpdateQuery(sql, new Object[] {
 				profile.getExperience(),
+				profile.getEnergy(),
 				profile.getNick(),
 				profile.getAuraOne(),
 				profile.getAuraTwo(),
@@ -247,6 +239,8 @@ public class BombersDispatcher extends SFSExtension {
 				profile.getRightHandItem(),
 				profile.getCurrentBomberId(),
 				profile.getPhoto(),
+				profile.getLastLogin(),
+				profile.getLuckCount(),
 				profile.getId()
 		});
 	}
@@ -286,6 +280,39 @@ public class BombersDispatcher extends SFSExtension {
 					st.executeUpdate();
 					
 					conn.commit();
+					conn.setAutoCommit(false);
+					
+					//Give prize to inviter if possible 
+					SFSObject prize = f_prizesCache.get(userId);
+					if (prize == null) {
+					    st = conn.prepareStatement(DBQueryManager.SqlSelectPrizeForInviting);
+						st.setString(1, userId);
+						SFSArray data = SFSArray.newFromResultSet(st.executeQuery());
+						if (data.size() > 0) {
+							prize = SFSObject.newFromJsonData(data.getSFSObject(0).getUtfString("Prize"));
+						}
+					}
+					if (prize != null ) {
+						int rc0 = prize.getInt("rc0");
+						int rc1 = prize.getInt("rc1");
+						int rc2 = prize.getInt("rc2");
+						int rc3 = prize.getInt("rc3");
+						String postCreatorId = prize.getUtfString("PostCreatorId");
+						PlayerProfile postCreatorProfile = f_profileCache.get(postCreatorId);
+						if (postCreatorProfile != null) {
+							postCreatorProfile.addGoldPrize(rc0);
+							postCreatorProfile.addCrystalPrize(rc1);
+							postCreatorProfile.addAdamantiumPrize(rc2);
+							postCreatorProfile.addAntimatterPrize(rc3);
+						}
+						getDbManager().ScheduleUpdateQuery(DBQueryManager.SqlAddPlayerResourcesPrize, new Object[] {
+							rc0,
+							rc1,
+							rc2,
+							rc3,
+							postCreatorId
+						});
+					}
 					
 					profile = new PlayerProfile(userId);
 				} else {
@@ -356,15 +383,21 @@ public class BombersDispatcher extends SFSExtension {
 		if (profile != null) {
 			f_profiles.put(user, profile);
 			
+			if (profile.getLastLogin() + 86400 < System.currentTimeMillis() / 1000) {
+				profile.addLuckCount(C_LuckCountPerDay);
+				profile.setLastLogin(System.currentTimeMillis() / 1000);
+			}
+			
 			ISFSObject params = profile.toSFSObject();
 			trace(params.toJson());
 			params.putSFSObject("Pricelist", f_pricelistManager.toSFSObject());
-			send("interface.gameProfileLoaded", params, user);
+			send("interface.gameProfileLoaded", params, user);	
 		}
 	}
 	
 	public void processUserLeave(User user) {
 		saveProfileToDb(user);
+		f_profiles.remove(user);
 	}
 	
 	public PlayerProfile getUserProfile(User user) {
@@ -535,6 +568,125 @@ public class BombersDispatcher extends SFSExtension {
 		getApi().createRoom(getParentZone(), settings, user, true, null);
 	}
 	
+	//
+	//Wall manager
+	//
+	
+	public boolean isUserRegistered(String login) {
+		if (f_profileCache.containsKey(login)) {
+			return true;
+		}
+		Connection conn = null;
+		try {
+			conn = getParentZone().getDBManager().getConnection();
+			PreparedStatement st = conn.prepareStatement(DBQueryManager.SqlSelectPlayerExistance);
+			st.setString(1, login);
+			SFSArray data = SFSArray.newFromResultSet(st.executeQuery());
+			ISFSObject row = data.getSFSObject(0);
+			return row.getLong("C") > 0;
+		}
+		catch (Exception e) {
+			trace(e.toString());
+			trace((Object[])e.getStackTrace());			
+			return true;
+		}
+		finally {
+			if (conn != null) {
+				try {
+					conn.close();
+				} catch (SQLException e) {
+					trace(e.toString());
+					trace((Object[])e.getStackTrace());
+				}
+			}
+		}
+	}
+
+	public void addPrize(String prizeActivatorId, SFSObject prize) {
+		f_prizesCache.put(prizeActivatorId, prize);
+	}
+	
+	public void takePrize(User user) {
+		PlayerProfile profile = getUserProfile(user);
+		SFSObject params = new SFSObject();
+		params.putInt("Gold", profile.getGold() + profile.getGoldPrize());
+		params.putInt("Crystal", profile.getCrystal() + profile.getCrystalPrize());
+		params.putInt("Adamantium", profile.getAdamantium() + profile.getAdamantiumPrize());
+		params.putInt("Antimatter", profile.getAntimatter() + profile.getAntimatterPrize());
+		getDbManager().ScheduleUpdateQuery(DBQueryManager.SqlTakePrize, new Object[] {
+				profile.getGoldPrize(), profile.getGoldPrize(),
+				profile.getCrystalPrize(), profile.getCrystalPrize(),
+				profile.getAdamantiumPrize(), profile.getAdamantiumPrize(),
+				profile.getAntimatterPrize(), profile.getAntimatterPrize(),
+				user.getName()
+		});
+		profile.addGold(profile.getGoldPrize()); 
+		profile.setGoldPrize(0);
+		profile.addCrystal(profile.getCrystalPrize()); 
+		profile.setCrystalPrize(0);
+		profile.addAdamantium(profile.getAdamantiumPrize()); 
+		profile.setAdamantiumPrize(0);
+		profile.addAntimatter(profile.getAntimatterPrize()); 
+		profile.setAntimatterPrize(0);
+		send("interface.takePrize.result", params, user);
+	}
+	
+	public void tryLuck(User user) {
+		PlayerProfile profile = getUserProfile(user);
+		SFSObject params = new SFSObject();
+		params.putInt("Gold", profile.getGold());
+		params.putInt("Crystal", profile.getCrystal());
+		params.putInt("Adamantium", profile.getAdamantium());
+		params.putInt("Antimatter", profile.getAntimatter());	
+		if (profile.getLuckCount() > 0) {
+			profile.addLuckCount(-1);
+			double r = Math.random();
+			if (r < 0.00001) {
+				profile.addAntimatter(1);
+				getDbManager().ScheduleUpdateQuery(DBQueryManager.SqlAddPlayerResources, new Object[] {
+					0, 0, 0, 1, 0, user.getName()	
+				});
+				params.putInt("Antimatter", profile.getAntimatter());	
+			} else if (r < 0.0001) {
+				profile.addAdamantium(1);
+				getDbManager().ScheduleUpdateQuery(DBQueryManager.SqlAddPlayerResources, new Object[] {
+						0, 0, 1, 0, 0, user.getName()	
+					});
+				params.putInt("Adamantium", profile.getAdamantium());	
+			} else if (r < 0.1) {
+				int c = (int)(1 + Math.random() * 2);
+				profile.addCrystal(c);
+				getDbManager().ScheduleUpdateQuery(DBQueryManager.SqlAddPlayerResources, new Object[] {
+						0, c, 0, 0, 0, user.getName()	
+					});
+				params.putInt("Crystal", profile.getCrystal());
+			} else if (r < 0.3) {
+				int g = (int)(1 + Math.random() * 4);
+				profile.addGold(g);
+				getDbManager().ScheduleUpdateQuery(DBQueryManager.SqlAddPlayerResources, new Object[] {
+						g, 0, 0, 0, 0, user.getName()	
+					});
+				params.putInt("Gold", profile.getGold());
+			}
+
+		} 
+		send("interface.tryLuck.result", params, user);
+	}
+	
+	public void buyLuck(User user, int luck) {
+		if (luck == 3) {
+			PlayerProfile profile = getUserProfile(user);
+			if (profile.getEnergy() >= 2) {
+				profile.addLuckCount(luck);
+				profile.addEnergy(-2);
+				
+				SFSObject params = new SFSObject();
+				params.putInt("Energy", profile.getEnergy());
+				params.putInt("LuckCount", profile.getLuckCount());
+				send("interface.buyLuck.result", params, user);
+			}
+		}
+	}
 	
 	
 }

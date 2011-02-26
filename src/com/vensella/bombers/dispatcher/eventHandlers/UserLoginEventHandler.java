@@ -12,46 +12,53 @@ import com.smartfoxserver.v2.exceptions.*;
 import com.smartfoxserver.v2.extensions.BaseServerEventHandler;
 import com.vensella.bombers.dispatcher.BombersDispatcher;
 
-@Instantiation(InstantiationMode.SINGLE_INSTANCE)
+@Instantiation(InstantiationMode.NEW_INSTANCE)
 public class UserLoginEventHandler extends BaseServerEventHandler {
 
-	//Constants
+	//Fields
 	
-	private static final String C_ApiId = "2027731";
-	private static final String C_ApiSecret = "zzeDxfsoN98huG0tcfvD";
+	private	MessageDigest md5;
 	
 	//Methods
 	
 	@Override
 	public void handleServerEvent(ISFSEvent event) throws SFSException {
-		BombersDispatcher dispatcher = (BombersDispatcher)getParentExtension();
+		if (md5 == null) {
+			try {
+				md5 = MessageDigest.getInstance("MD5");
+			}
+			catch (Exception ex) {
+				trace("[ERROR] MD5 can't be initialized!");
+				trace(ex.toString());
+				trace((Object[])ex.getStackTrace());
+		        SFSErrorData errData = new SFSErrorData(SFSErrorCode.LOGIN_SERVER_FULL);
+			    throw new SFSLoginException("Server internal problem", errData);
+			}
+		}
 		
 		String login = (String)event.getParameter(SFSEventParam.LOGIN_NAME);
 		String password = (String)event.getParameter(SFSEventParam.LOGIN_PASSWORD);
 		String hashText = "";
 		
-		try
-		{
-			MessageDigest md5 = dispatcher.getMD5();
+		try	{
 			md5.reset();
-			
-			byte[] hashed = md5.digest((C_ApiId + "_" + login + "_" + C_ApiSecret).getBytes("UTF-8"));
+			byte[] hashed = 
+				md5.digest((BombersDispatcher.C_ApiId + "_" + login + "_" + BombersDispatcher.C_ApiSecret).getBytes("UTF-8"));
 			BigInteger bigInt = new BigInteger(1, hashed);
 			hashText = bigInt.toString(16);
-			while(hashText.length() < 32 ){
+			while(hashText.length() < 32 ) {
 				hashText = "0" + hashText;
 			}
 		}
-		catch (Exception ex)
-		{
+		catch (Exception ex) {
 			hashText = "";
 		}
+		trace("Calculated auth_key = " + hashText);
 		
 		Session s = (Session)event.getParameter(SFSEventParam.SESSION);
 		
-		//if (getApi().checkSecurePassword(s, hashText, password) == false)
-		if (getApi().checkSecurePassword(s, login, password) == false)
-		{
+		//if (getApi().checkSecurePassword(s, hashText, password) == false) {
+		if (getApi().checkSecurePassword(s, login, password) == false) {
 	        SFSErrorData errData = new SFSErrorData(SFSErrorCode.LOGIN_BAD_PASSWORD);
 	        errData.addParameter(login);
 		    trace("[Notice] User " + login + " attemted to login with password " + password);

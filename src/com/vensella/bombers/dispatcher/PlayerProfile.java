@@ -21,6 +21,9 @@ public class PlayerProfile {
 	public static final String C_Experience = "Experience";
 	public static final String C_Energy = "Energy";
 	
+	public static final String C_LastLogin = "LastLogin";
+	public static final String C_LuckCount = "LuckCount";
+	
 	public static final String C_CurrentBomberId = "BomberId";
 	public static final String C_RightHandItem = "RightHand";
 	public static final String C_AuraOne = "AuraOne";
@@ -32,6 +35,11 @@ public class PlayerProfile {
 	public static final String C_Crystal = "Crystal";
 	public static final String C_Adamantium = "Adamantium";
 	public static final String C_Antimatter = "Antimatter";
+	
+	public static final String C_GoldPrize = "GoldPrize";
+	public static final String C_CrystalPrize = "CrystalPrize";
+	public static final String C_AdamantiumPrize = "AdamantiumPrize";
+	public static final String C_AntimatterPrize = "AntimatterPrize";
 	
 	public static final String C_UserId = "UserId";
 	public static final String C_LocationId = "LocationId";
@@ -83,6 +91,14 @@ public class PlayerProfile {
 		f_antimatter = p.getInt(C_Antimatter);
 		f_votes = p.getInt(C_Votes);
 		
+		f_goldPrize = p.getInt(C_GoldPrize);
+		f_crystalPrize = p.getInt(C_CrystalPrize);
+		f_adamantiumPrize = p.getInt(C_AdamantiumPrize);
+		f_antimatterPrize = p.getInt(C_AntimatterPrize);
+		
+		f_luckCount = p.getInt(C_LuckCount);
+		f_lastLogin = p.getLong(C_LastLogin);
+		
 		f_locations = new ConcurrentHashMap<Integer, Object>();
 		for (int i = 0; i < locations.size(); ++i)
 		{
@@ -123,6 +139,16 @@ public class PlayerProfile {
 	private int f_antimatter;
 	private int f_votes;
 	
+	//private int f_energyPrize;
+	private int f_goldPrize;
+	private int f_crystalPrize;
+	private int f_adamantiumPrize;
+	private int f_antimatterPrize;
+	
+	private long f_lastLogin;
+	
+	private int f_luckCount;
+	
 	private Map<Integer, Object> f_locations;
 	private Map<Integer, Integer> f_items;
 	private Map<Integer, Object> f_bombers;
@@ -130,6 +156,13 @@ public class PlayerProfile {
 	//Getters and setters
 	
 	public String getId() { return f_id; }
+	
+	public long getLastLogin() { return f_lastLogin; }
+	public void setLastLogin(long lastLogin) { f_lastLogin = lastLogin; }
+	
+	public int getLuckCount() { return f_luckCount; }
+	public void setLuckCount(int luckCount) { f_luckCount = luckCount; }
+	public void addLuckCount(int delta) { f_luckCount += delta; }
 	
 	public String getNick() { return f_nick; }
 	public void setNick(String nick) { f_nick = nick; }
@@ -173,6 +206,22 @@ public class PlayerProfile {
 	public int getAntimatter() { return f_antimatter; }
 	public void setAntimatter(int antimatter) { f_antimatter = antimatter; }
 	public void addAntimatter(int delta) { f_antimatter += delta; }
+	
+	public int getGoldPrize() { return f_goldPrize; }
+	public void setGoldPrize(int goldPrize) { f_goldPrize = goldPrize; }
+	public void addGoldPrize(int delta) { f_goldPrize += delta; }
+	
+	public int getCrystalPrize() { return f_crystalPrize; }
+	public void setCrystalPrize(int crystalPrize) { f_crystalPrize = crystalPrize; }
+	public void addCrystalPrize(int delta) { f_crystalPrize += delta; }
+	
+	public int getAdamantiumPrize() { return f_adamantiumPrize; }
+	public void setAdamantiumPrize(int adamantiumPrize) { f_adamantiumPrize = adamantiumPrize; }
+	public void addAdamantiumPrize(int delta) { f_adamantiumPrize += delta; }
+	
+	public int getAntimatterPrize() { return f_antimatterPrize; }
+	public void setAntimatterPrize(int antimatterPrize) { f_antimatterPrize = antimatterPrize; }
+	public void addAntimatterPrize(int delta) { f_antimatterPrize += delta; }
 	
 	public int getVotes() { return f_votes; }
 	public void setVotes(int votes) { f_votes = votes; }
@@ -267,6 +316,14 @@ public class PlayerProfile {
 		profile.putInt(C_Crystal, f_crystal);
 		profile.putInt(C_Adamantium, f_adamantium);
 		profile.putInt(C_Antimatter, f_antimatter);
+		
+		profile.putInt(C_GoldPrize, f_goldPrize);
+		profile.putInt(C_CrystalPrize, f_crystalPrize);
+		profile.putInt(C_AdamantiumPrize, f_adamantiumPrize);
+		profile.putInt(C_AntimatterPrize, f_antimatterPrize);
+		
+		profile.putInt(C_LuckCount, f_luckCount);
+		profile.putLong(C_LastLogin, f_lastLogin);
 		
 		ISFSArray locations = new SFSArray();
 		locations.addIntArray(f_locations.keySet());

@@ -54,7 +54,7 @@ public class WeaponsManager {
 			addBombAtomic(user, weaponId, x, y);
 			break;
 		case WEAPON_BOMB_BOX:
-			addBombBox(user, weaponId, x, y);
+			//addBombBox(user, weaponId, x, y);
 			break;
 		case WEAPON_BOMB_DYNAMITE:
 			addBombDynamite(user, weaponId, x, y);
@@ -414,38 +414,13 @@ public class WeaponsManager {
 		f_game.addGameEvent(new GameEvent(f_game) {
 			@Override
 			protected void ApplyOnGame(final BombersGame game, final DynamicGameMap map) {
-				DynamicObject obj  = map.getDynamicObject(x, y);
-				if (obj == null && withdrawWeapon(profile, weaponId)) {
-					obj = new DynamicObject(f_game, false, false) {
-						@Override
-						public GameEvent getActivateEvent() {
-							return new GameEvent(f_game) {
-								@Override
-								protected void ApplyOnGame(BombersGame game, DynamicGameMap map) {
-									setActivated(true);
-		
-									map.removeDynamicObject(x, y);
-									
-									SFSObject params = new SFSObject();
-									params.putUtfString("game.DOAct.f.userId", user.getName());
-									params.putInt("game.DOAct.f.type", weaponId);
-									params.putInt("game.DOAct.f.x", x);
-									params.putInt("game.DOAct.f.y", y);
-									params.putBool("game.DOAct.f.isRemoved", true);
-									f_game.send("game.DOAct", params, f_game.getParentRoom().getPlayersList());	
-								}
-							};
-						}
-					};
-					map.setDynamicObject(x, y, obj);
-					f_game.addDelayedGameEvent(obj.getActivateEvent(), 1266);
-
+				if (withdrawWeapon(profile, weaponId)) {
 					SFSObject params = new SFSObject();
-					params.putUtfString("game.DOAdd.f.userId", user.getName());
-					params.putInt("game.DOAdd.f.type", weaponId);
-					params.putInt("game.DOAdd.f.x", x);
-					params.putInt("game.DOAdd.f.y", y);
-					f_game.send("game.DOAdd", params, f_game.getParentRoom().getPlayersList());
+					params.putUtfString("game.WA.f.userId", user.getName());
+					params.putInt("game.WA.f.type", weaponId);
+					params.putInt("game.WA.f.x", x);
+					params.putInt("game.WA.f.y", y);
+					f_game.send("game.WA", params, f_game.getParentRoom().getPlayersList());					
 				}
 			} 
 		});
