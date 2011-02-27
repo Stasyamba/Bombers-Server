@@ -449,7 +449,7 @@ public class BombersGame extends SFSExtension {
 	private void killPlayer(PlayerGameProfile player) {
 		synchronized (lock) {
 			player.setIsAlive(false);
-			adjustPlayerExperience(player, f_currentPlayerRank);
+			adjustPlayerExperience(player, f_currentPlayerRank--);
 			f_dieSequence.remove(player);
 			savePlayerGameResultToDb(player);
 
