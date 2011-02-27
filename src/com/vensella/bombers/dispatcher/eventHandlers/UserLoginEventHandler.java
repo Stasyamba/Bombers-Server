@@ -53,15 +53,22 @@ public class UserLoginEventHandler extends BaseServerEventHandler {
 		catch (Exception ex) {
 			hashText = "";
 		}
-		trace("Calculated auth_key = " + hashText);
 		
 		Session s = (Session)event.getParameter(SFSEventParam.SESSION);
-		
-		//if (getApi().checkSecurePassword(s, hashText, password) == false) {
-		if (getApi().checkSecurePassword(s, login, password) == false) {
+		boolean accept = false;
+		if (login.equals("1") || login.equals("2") || login.equals("3") || login.equals("4") || login.equals("5")) {
+			trace("Using simple auth for user " + login);
+			accept = getApi().checkSecurePassword(s, login, password);
+			if (accept == false) {
+				accept = getApi().checkSecurePassword(s, hashText, password);
+			}
+		} else {
+			accept = getApi().checkSecurePassword(s, hashText, password);
+		}
+		if (!accept) {
 	        SFSErrorData errData = new SFSErrorData(SFSErrorCode.LOGIN_BAD_PASSWORD);
 	        errData.addParameter(login);
-		    trace("[Notice] User " + login + " attemted to login with password " + password);
+		    trace("[Notice] User " + login + " attemted to login with bad password");
 		    throw new SFSLoginException("Bad login-password pair", errData);
 		}	
 	}

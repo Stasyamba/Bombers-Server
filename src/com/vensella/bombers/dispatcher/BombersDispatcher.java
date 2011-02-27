@@ -80,6 +80,7 @@ public class BombersDispatcher extends SFSExtension {
 	//Game settings
 	
 	private int C_LuckCountPerDay = 3;
+	private int C_EnergyPerDay = 2;
 	
 	//Constructors and initializers
 	
@@ -385,6 +386,7 @@ public class BombersDispatcher extends SFSExtension {
 			
 			if (profile.getLastLogin() + 86400 < System.currentTimeMillis() / 1000) {
 				profile.addLuckCount(C_LuckCountPerDay);
+				profile.addEnergy(C_EnergyPerDay);
 				profile.setLastLogin(System.currentTimeMillis() / 1000);
 			}
 			
