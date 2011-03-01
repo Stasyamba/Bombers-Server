@@ -15,6 +15,8 @@ public class PlayerProfile {
 
 	//Constants
 	
+	public static final int C_BetaMaximunExperience = 300;
+	
 	public static final String C_Id = "Id";
 	public static final String C_Nick = "Nick";
 	public static final String C_Photo = "Photo";
@@ -171,8 +173,8 @@ public class PlayerProfile {
 	public void setPhoto(String photo) { f_photo = photo; }
 	
 	public int getExperience() { return f_experience; }
-	public void setExperience(int experience) { f_experience = experience; }
-	public void addExperience(int delta) { f_experience += delta; }
+	public void setExperience(int experience) { f_experience = Math.min(experience, C_BetaMaximunExperience); }
+	public void addExperience(int delta) { f_experience = Math.min(f_experience + delta, C_BetaMaximunExperience); }
 	
 	public int getLevel() {
 		if (LevelTable == null) return 1;
