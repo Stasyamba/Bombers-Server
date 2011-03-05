@@ -4,6 +4,7 @@ import com.smartfoxserver.v2.SmartFoxServer;
 import com.smartfoxserver.v2.core.SFSEventType;
 import com.smartfoxserver.v2.entities.User;
 import com.smartfoxserver.v2.entities.data.SFSObject;
+import com.smartfoxserver.v2.extensions.ExtensionLogLevel;
 import com.smartfoxserver.v2.extensions.SFSExtension;
 import com.vensella.bombers.dispatcher.eventHandlers.UserJoinWallZoneEventHandler;
 import com.vensella.bombers.dispatcher.eventHandlers.UserLoginEventHandler;
@@ -19,6 +20,8 @@ public class WallDispatcher extends SFSExtension {
 	
 	@Override
 	public void init() {
+		trace(ExtensionLogLevel.WARN, "Wall dispatcher init() start");
+		
 		//Initialize fields
 		
 		//Add event handlers
@@ -28,7 +31,7 @@ public class WallDispatcher extends SFSExtension {
 		
 		addRequestHandler("bombersWall.submitPrize", WallSubmitPrizeEventHandler.class);
 		
-		trace("Wall dispatcher init()");
+		trace(ExtensionLogLevel.WARN, "Wall dispatcher init() end");
 	}
 	
 	//Methods
@@ -43,14 +46,15 @@ public class WallDispatcher extends SFSExtension {
 	
 	public void loginUser(User user) {
 		boolean isRegistered = getBombersDispatcher().isUserRegistered(user.getName());
-		trace("User " + user.getName() + " is registered = " + isRegistered);
+		
+		trace(ExtensionLogLevel.WARN, "User " + user.getName() + " logins form wall, isRegistered = " + isRegistered);
+		
 		SFSObject params = new SFSObject();
 		params.putBool("IsRegistered", isRegistered);
 		send("bombersWall.isRegisteredLoaded", params, user);
 	}
 	
-	public void submitPrize(User user, String postCreatorId) {
-		trace ("User " + user.getName() + "submits prize, post creator id = " + postCreatorId);
+	public void submitPrize(User user, String postCreatorId) {	
 		SFSObject prize = getRandomPrize();
 		prize.putUtfString("PostCreatorId", postCreatorId);
 		getBombersDispatcher().addPrize(user.getName(), prize);

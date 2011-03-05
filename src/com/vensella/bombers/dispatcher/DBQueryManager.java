@@ -8,6 +8,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 import com.smartfoxserver.v2.entities.data.ISFSArray;
 import com.smartfoxserver.v2.entities.data.SFSArray;
+import com.smartfoxserver.v2.extensions.ExtensionLogLevel;
 
 
 public class DBQueryManager {
@@ -140,16 +141,16 @@ public class DBQueryManager {
 					}
 					catch(Exception ex)
 					{
-						f_dispatcher.trace("[WARNING] Db query exception:");
+						f_dispatcher.trace(ExtensionLogLevel.ERROR, "Db query exception:");
 						if (sql != null) {
-							f_dispatcher.trace(sql);
+							f_dispatcher.trace(ExtensionLogLevel.ERROR, sql);
 						}
 						if (params != null) {
 							for (int i = 0; i < params.length; ++i) if (params[i] == null) params[i] = "$NULL$";
-							f_dispatcher.trace(params);
+							f_dispatcher.trace(ExtensionLogLevel.ERROR, params);
 						}
-						f_dispatcher.trace(ex.getMessage());
-						f_dispatcher.trace((Object[])ex.getStackTrace());
+						f_dispatcher.trace(ExtensionLogLevel.ERROR, ex.getMessage());
+						f_dispatcher.trace(ExtensionLogLevel.ERROR, (Object[])ex.getStackTrace());
 						if (cb != null)
 							cb.run(null);
 					}

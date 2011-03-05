@@ -56,7 +56,7 @@ public class UserLoginEventHandler extends BaseServerEventHandler {
 		
 		Session s = (Session)event.getParameter(SFSEventParam.SESSION);
 		boolean accept = false;
-		if (login.equals("1") || login.equals("2") || login.equals("3") || login.equals("4") || login.equals("5")) {
+		if (isTestLogin(login)) {
 			trace("Using simple auth for user " + login);
 			accept = getApi().checkSecurePassword(s, login, password);
 			if (accept == false) {
@@ -71,6 +71,11 @@ public class UserLoginEventHandler extends BaseServerEventHandler {
 		    trace("[Notice] User " + login + " attemted to login with bad password");
 		    throw new SFSLoginException("Bad login-password pair", errData);
 		}	
+	}
+	
+	public static boolean isTestLogin(String login) {
+		return (login.equals("test1") || login.equals("test2") || login.equals("test3") 
+			|| login.equals("test4") || login.equals("test5"));
 	}
 
 }

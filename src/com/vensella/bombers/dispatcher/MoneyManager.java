@@ -10,6 +10,7 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import com.smartfoxserver.v2.entities.data.SFSObject;
+import com.smartfoxserver.v2.extensions.ExtensionLogLevel;
 
 public class MoneyManager {
 
@@ -47,20 +48,6 @@ public class MoneyManager {
 	
 	
 	private boolean vkWithdrawVotesHttpRequest(String userId, int votes) {
-//		$rand = rand();
-//		$time = time();
-//
-//		$request = "";
-//		$request.= "api_id=1865572";
-//		$request.= "format=JSON";
-//		$request.= "method=secure.withdrawVotes";
-//		$request.= "random=$rand";
-//		$request.= "timestamp=$time";
-//		$request.= "uid=$userId";
-//		$request.= "v=2.0";
-//		$request.= "votes=$votes";
-//"http://api.vkontakte.ru/api.php?api_id=1865572&format=JSON&method=secure.withdrawVotes&random=$rand&timestamp=$time&uid=$userId&v=2.0&votes=$votes&sig=$sig"
-		
 		int rand = (int)(10000 * Math.random());
 		long time = System.currentTimeMillis() / 1000;
 		
@@ -103,7 +90,10 @@ public class MoneyManager {
 		        BufferedReader in = new BufferedReader(new InputStreamReader(is));
 		        String inputLine;
 		        while ((inputLine = in.readLine()) != null) {
-		        	f_dispatcher.trace("VkRequest result: " + inputLine);
+		        	f_dispatcher.trace(
+		        			ExtensionLogLevel.WARN, 
+		        			"VkRequest(security.withdrawVotes) result for user login "+ userId +": " + inputLine
+		        		);
 		        	
 		        	SFSObject response = SFSObject.newFromJsonData(inputLine);
 		        	if (response.containsKey("response") && response.getInt("response") == votes) {
@@ -117,8 +107,9 @@ public class MoneyManager {
 			}
 		}
 		catch (Exception e) {
-			f_dispatcher.trace(e.toString());
-			f_dispatcher.trace((Object[])e.getStackTrace());
+			f_dispatcher.trace(ExtensionLogLevel.ERROR, "While trying to withdraw " + votes + " from user " + userId);
+			f_dispatcher.trace(ExtensionLogLevel.ERROR, e.toString());
+			f_dispatcher.trace(ExtensionLogLevel.ERROR, (Object[])e.getStackTrace());
 			return false;
 		}
 	}

@@ -15,6 +15,7 @@ public class PlayerProfile {
 
 	//Constants
 	
+	public static final int C_MaximunFreeEnergy = 10;
 	public static final int C_BetaMaximunExperience = 300;
 	
 	public static final String C_Id = "Id";

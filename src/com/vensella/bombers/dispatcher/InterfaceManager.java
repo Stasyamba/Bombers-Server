@@ -2,6 +2,7 @@ package com.vensella.bombers.dispatcher;
 
 import com.smartfoxserver.v2.entities.User;
 import com.smartfoxserver.v2.entities.data.SFSObject;
+import com.smartfoxserver.v2.extensions.ExtensionLogLevel;
 
 public class InterfaceManager {
 	
@@ -62,7 +63,10 @@ public class InterfaceManager {
 			totalCost = f_dispatcher.getPricelistManager().getEnergyCost(rc4);
 		}
 		
-		f_dispatcher.trace("User " + user.getName() + " trying to buy resources for " + totalCost + " votes");
+		f_dispatcher.trace(
+				ExtensionLogLevel.WARN, 
+				"User " + user.getName() + " trying to buy resources for " + totalCost + " votes"
+			);
 		
 		f_dispatcher.getMoneyManager().beginTransactVotes(profile, totalCost, 
 				new Runnable() {

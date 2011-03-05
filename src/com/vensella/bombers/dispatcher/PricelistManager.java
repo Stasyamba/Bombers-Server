@@ -15,6 +15,7 @@ import org.w3c.dom.NodeList;
 
 import com.smartfoxserver.v2.entities.data.SFSArray;
 import com.smartfoxserver.v2.entities.data.SFSObject;
+import com.smartfoxserver.v2.extensions.ExtensionLogLevel;
 
 //TODO: Add concurrent locks
 public class PricelistManager {
@@ -95,8 +96,9 @@ public class PricelistManager {
 			parsePricelist(PricelistPath);
 		}
 		catch (Exception ex) {
-			f_dispatcher.trace(ex.toString());
-			f_dispatcher.trace((Object[])ex.getStackTrace());
+			f_dispatcher.trace(ExtensionLogLevel.ERROR, "While parsing pricelist at path " + PricelistPath);
+			f_dispatcher.trace(ExtensionLogLevel.ERROR, ex.toString());
+			f_dispatcher.trace(ExtensionLogLevel.ERROR, (Object[])ex.getStackTrace());
 		}
 	}
 	

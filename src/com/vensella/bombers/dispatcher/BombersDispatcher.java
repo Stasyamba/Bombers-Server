@@ -88,7 +88,7 @@ public class BombersDispatcher extends SFSExtension {
 	@Override
 	public void init()
 	{ 
-		trace("Bombers zone dispatcher init() start");
+		trace(ExtensionLogLevel.WARN, "Bombers zone dispatcher init() start");
 		
 		//Initialize fields
 		
@@ -135,7 +135,7 @@ public class BombersDispatcher extends SFSExtension {
 							) {
 								event.Apply();
 							} else {
-								trace ("[Notice] Event dropped by kernel");
+								trace (ExtensionLogLevel.DEBUG, "[Notice] Event dropped by kernel");
 							}
 						} catch (Exception ex) {
 							//TODO: Add trace attributes
@@ -183,16 +183,17 @@ public class BombersDispatcher extends SFSExtension {
 		addRequestHandler("interface.tryLuck", InterfaceTryLuckEventHandler.class);
 		addRequestHandler("interface.buyLuck", InterfaceBuyLuckEventHandler.class);
 		 		
-		trace("Bombers zone dispatcher init() end");
+		trace(ExtensionLogLevel.WARN, "Bombers zone dispatcher init() end");
 	}
 
 	@Override
 	public void destroy()
 	{
 		//TODO: Inform users about server reset
+		//TODO: Disconnect all users to connect them after few seconds
 		//TODO: Free all resources (threads, timers, etc..)
 		super.destroy();
-		trace("Bombers zone dispatcher destroy()");
+		trace(ExtensionLogLevel.WARN, "Bombers zone dispatcher destroy()");
 	}
 	
 	//Special methods
@@ -342,9 +343,9 @@ public class BombersDispatcher extends SFSExtension {
 				}
 			}
 			catch (Exception ex) {
-				trace ("Something bad happened during user load =(");
-				trace(ex.toString());
-				trace((Object[])ex.getStackTrace());
+				trace (ExtensionLogLevel.ERROR, "Something bad happened during user load, user login = " + userId);
+				trace(ExtensionLogLevel.ERROR, ex.toString());
+				trace(ExtensionLogLevel.ERROR, (Object[])ex.getStackTrace());
 				
 				if (conn != null && conn.getAutoCommit() == false) {
 					conn.rollback();
@@ -358,9 +359,9 @@ public class BombersDispatcher extends SFSExtension {
 			}
 		} 
 		catch (Exception ex) {
-			trace ("Something VERY bad happened during user load =(");
-			trace(ex.toString());
-			trace((Object[])ex.getStackTrace());
+			trace (ExtensionLogLevel.ERROR, "Something VERY bad happened during user load, user login = " + userId);
+			trace(ExtensionLogLevel.ERROR, ex.toString());
+			trace(ExtensionLogLevel.ERROR, (Object[])ex.getStackTrace());
 			
 			profile = null;
 		}
@@ -389,18 +390,25 @@ public class BombersDispatcher extends SFSExtension {
 			
 			if (profile.getLastLogin() + 86400 < System.currentTimeMillis() / 1000) {
 				profile.addLuckCount(C_LuckCountPerDay);
-				profile.addEnergy(C_EnergyPerDay);
+				if (profile.getEnergy() + C_EnergyPerDay <= PlayerProfile.C_MaximunFreeEnergy) {
+					profile.addEnergy(C_EnergyPerDay);
+				}
 				profile.setLastLogin(System.currentTimeMillis() / 1000);
 			}
 			
 			ISFSObject params = profile.toSFSObject();
-			trace(params.toJson());
+			
+			trace(ExtensionLogLevel.WARN, "User login, " + userId);
+			trace(ExtensionLogLevel.WARN, params.toJson());
+			
 			params.putSFSObject("Pricelist", f_pricelistManager.toSFSObject());
 			send("interface.gameProfileLoaded", params, user);	
 		}
 	}
 	
 	public void processUserLeave(User user) {
+		trace(ExtensionLogLevel.WARN, "User leave, login = ", user.getName());
+		
 		saveProfileToDb(user);
 		f_profiles.remove(user);
 	}
@@ -427,26 +435,35 @@ public class BombersDispatcher extends SFSExtension {
 		PlayerProfile profile = getUserProfile(user);
 		List<Room> rooms = new ArrayList<Room>(getParentZone().getRoomListFromGroup(C_GameGroupId));
 		List<Integer> locations = Locations.findBestLocations(profile);
+		List<Room> candidates = new ArrayList<Room>();
 		
 		//Find room with minimal experience difference
-		Room bestRoom = null;
-		int currentMinExpDiff = Integer.MAX_VALUE;
+		//Room bestRoom = null;
+		//int currentMinExpDiff = Integer.MAX_VALUE;
+		Room emptyRoom = null;
 		for (Room room : rooms) {
 			if (room.isFull() || room.isPasswordProtected()) continue;
 			BombersGame game = (BombersGame)room.getExtension();
 			if (game.isGameStarted()) continue;
 			if (locations.contains(game.getLocationId())) {
-				int expDiff = game.getAbsoluteExperienceDifference(profile.getExperience());
-				if (expDiff < currentMinExpDiff) {
-					currentMinExpDiff = expDiff;
-					bestRoom = room;
-				}
+				if (room.isEmpty()) { emptyRoom = room; continue; }
+//				int expDiff = game.getAbsoluteExperienceDifference(profile.getExperience());
+//				if (expDiff < currentMinExpDiff) {
+//					currentMinExpDiff = expDiff;
+//					bestRoom = room;
+//				}
+				candidates.add(room);
 			}
 		}
 		try {
-			if (bestRoom != null) {
-				getApi().joinRoom(user, bestRoom);
-			} else {
+			//if (bestRoom != null) {
+			//	getApi().joinRoom(user, bestRoom);
+			if (candidates.isEmpty() == false) {
+				getApi().joinRoom(user, candidates.get((int)(Math.random() * candidates.size())));
+			} else if (emptyRoom != null) {
+				getApi().joinRoom(user, emptyRoom);
+			}
+			else{
 				createGameInternal(
 						user, 
 						locations.get((int)(locations.size() * Math.random())), 
@@ -591,8 +608,9 @@ public class BombersDispatcher extends SFSExtension {
 			return row.getLong("C") > 0;
 		}
 		catch (Exception e) {
-			trace(e.toString());
-			trace((Object[])e.getStackTrace());			
+			trace(ExtensionLogLevel.ERROR, "While cheking isUserRegistered for login = " + login);
+			trace(ExtensionLogLevel.ERROR, e.toString());
+			trace(ExtensionLogLevel.ERROR, (Object[])e.getStackTrace());			
 			return true;
 		}
 		finally {
@@ -600,8 +618,9 @@ public class BombersDispatcher extends SFSExtension {
 				try {
 					conn.close();
 				} catch (SQLException e) {
-					trace(e.toString());
-					trace((Object[])e.getStackTrace());
+					trace(ExtensionLogLevel.ERROR, "While cheking isUserRegistered (second stage) for login = " + login);
+					trace(ExtensionLogLevel.ERROR, e.toString());
+					trace(ExtensionLogLevel.ERROR, (Object[])e.getStackTrace());
 				}
 			}
 		}

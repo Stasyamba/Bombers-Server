@@ -15,6 +15,7 @@ import com.smartfoxserver.v2.entities.data.SFSArray;
 import com.smartfoxserver.v2.entities.data.SFSObject;
 import com.smartfoxserver.v2.entities.variables.RoomVariable;
 import com.smartfoxserver.v2.entities.variables.SFSRoomVariable;
+import com.smartfoxserver.v2.extensions.ExtensionLogLevel;
 import com.smartfoxserver.v2.extensions.SFSExtension;
 
 import com.vensella.bombers.dispatcher.*;
@@ -249,8 +250,20 @@ public class BombersGame extends SFSExtension {
 		params.putUtfString("Id", user.getName());
 		params.putBool("IsReady", isReady);
 		send("game.lobby.readyChanged", params, getParentRoom().getPlayersList());
-		if (f_gameProfiles.size() == f_players.size() &&  f_gameProfiles.size() >= getParentRoom().getCapacity() / 2) {
-			trace("5 seconds to start situation");
+		
+		int beforeStart = 0;
+		if (f_gameProfiles.size() == f_players.size() &&  f_gameProfiles.size() >= 2) 
+			beforeStart = 8000;
+		if (f_gameProfiles.size() == f_players.size() &&  f_gameProfiles.size() >= getParentRoom().getCapacity() / 2) 
+			beforeStart = 3000;
+		if (f_gameProfiles.size() == f_players.size() - 1 &&  f_gameProfiles.size() >= getParentRoom().getCapacity() / 2) 
+			beforeStart = 4050;
+		if (f_gameProfiles.size() == f_players.size() &&  f_players.size() == getParentRoom().getCapacity()) 
+			beforeStart = 1250;
+		
+		if (beforeStart > 0) {
+			//trace(beforeStart + " msecs to start situation");
+			//final int finalBeforeStart = beforeStart;
 			SmartFoxServer.getInstance().getTaskScheduler().schedule(new Runnable() {
 				private int f_situationId = situationId;
 				@Override
@@ -258,15 +271,15 @@ public class BombersGame extends SFSExtension {
 							//CriticalSection.lock();
 							synchronized (lock) {
 								if (f_10secondToStart == f_situationId) {
-									trace("Starting game because of 5 seconds passed");
+									//trace("Starting game because of " + finalBeforeStart +" msecs passed");
 									prepareToStartGame();
 								} else {
-									trace("5 seconds passed, but situation has changed!");
+									//trace(finalBeforeStart + " msecs passed, but situation has changed!");
 								}	
 							}
 							//CriticalSection.unlock();
 						}
-			}, 5000, TimeUnit.MILLISECONDS);
+			}, beforeStart, TimeUnit.MILLISECONDS);
 		}
 	}
 	
@@ -284,13 +297,19 @@ public class BombersGame extends SFSExtension {
 		
 		//Initialize different data
 		
+		//TODO: Rewrite possible bad code
+		f_gameProfiles.clear();
+		for (User user : getParentRoom().getUserList()) {
+			PlayerGameProfile gameProfile = new PlayerGameProfile(user, f_players.get(user));
+			f_gameProfiles.put(user, gameProfile);
+		}
 		f_dieSequence = new ArrayList<PlayerGameProfile>(f_gameProfiles.values());
 		f_currentPlayerRank = f_gameProfiles.size();
 		
 		//Initialize map and start locations, and send it
 		
-		f_gameField = f_dispatcher.getMapManager().getRandomMap(f_locationId, f_gameProfiles.size());
-		trace("f_gameField = " + f_gameField.toString());
+		f_gameField = f_dispatcher.getMapManager().getRandomMap(getParentRoom(), f_locationId, f_gameProfiles.size());
+		//trace("f_gameField = " + f_gameField.toString());
 		f_dynamicObjectManager.setWallBlocksCount(f_gameField.getWallBlocksCount());
 		//TODO: Increase room's maximum capacity if necessary
 		
@@ -322,7 +341,7 @@ public class BombersGame extends SFSExtension {
 		SmartFoxServer.getInstance().getTaskScheduler().schedule(new Runnable() {
 			@Override
 			public void run() {
-				trace("Starting game");
+				trace(ExtensionLogLevel.WARN, "Starting game, gameId = " + f_gameId);
 				startGame();
 			}
 		}, 3000, TimeUnit.MILLISECONDS);
@@ -344,6 +363,8 @@ public class BombersGame extends SFSExtension {
 		if (f_isGameStarted == false) {
 			return;
 		}
+		trace(ExtensionLogLevel.WARN, "Ending game, gameId = " + f_gameId);
+		
 		f_gameId = GameEvent.INVALID_GAME_ID;
 
 		SFSObject params = new SFSObject();
@@ -371,7 +392,6 @@ public class BombersGame extends SFSExtension {
 		SFSArray usersInfo = getLobbyProfiles();
 		params.putSFSArray("profiles", usersInfo);
 		send("game.gameEnded", params, getParentRoom().getPlayersList());
-		trace("End game");
 		//}
 		//CriticalSection.unlock();
 	}

@@ -3,7 +3,10 @@ package com.vensella.bombers.dispatcher;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
+import com.smartfoxserver.v2.entities.Room;
+import com.smartfoxserver.v2.extensions.ExtensionLogLevel;
 import com.vensella.bombers.game.mapObjects.DynamicGameMap;
 
 public class MapManager {
@@ -23,6 +26,8 @@ public class MapManager {
 	private Map<Integer, ArrayList<DynamicGameMap>> f_mapPool;
 	//private Map<String, DynamicBigObject> f_bigObjectPool;
 	
+	private Map<Room, Integer> f_mapRotation;
+	
 	
 	//Constructors
 	
@@ -30,7 +35,8 @@ public class MapManager {
 		f_dispatcher = dispatcher;
 		f_mapPool = new HashMap<Integer, ArrayList<DynamicGameMap>>();
 		//f_bigObjectPool = new HashMap<String, DynamicBigObject>();
-	
+		f_mapRotation = new ConcurrentHashMap<Room, Integer>();
+		
 		initializeBigObjectPool();
 		initializeMapPool();
 	}
@@ -50,11 +56,16 @@ public class MapManager {
 			}
 		};		
 		File[] names = mapsDirectory.listFiles(mapFileFilter);
-		f_dispatcher.trace((Object[])names);
+		
 		for (File file : names) {
 			try {
 				DynamicGameMap map = new DynamicGameMap(file.getPath(), this);
-				f_dispatcher.trace("Map id = " + map.getMapId() + ", location = " + map.getLocationId());
+				
+				f_dispatcher.trace(
+						ExtensionLogLevel.WARN, 
+						"Loaded map, map id = " + map.getMapId() + ", location = " + map.getLocationId()
+					);
+				
 				if (f_mapPool.containsKey(map.getLocationId())) {
 					f_mapPool.get(map.getLocationId()).add(map);
 				} else {
@@ -64,16 +75,16 @@ public class MapManager {
 				}
 			} 
 			catch (Exception ex) {
-				f_dispatcher.trace(ex.toString());
-				f_dispatcher.trace((Object[])ex.getStackTrace());
+				f_dispatcher.trace(ExtensionLogLevel.ERROR, "While load map at path " + file.getPath());
+				f_dispatcher.trace(ExtensionLogLevel.ERROR, ex.toString());
+				f_dispatcher.trace(ExtensionLogLevel.ERROR, (Object[])ex.getStackTrace());
 			}
 		}
-		f_dispatcher.trace("Map pool size = " + f_mapPool.size());
 	}
 	
 	//Methods
 	
-	public DynamicGameMap getRandomMap(int locationId, int players) {
+	public DynamicGameMap getRandomMap(Room room, int locationId, int players) {
 		if (f_mapPool.containsKey(locationId) == false) {
 			return null;
 		}
@@ -82,7 +93,15 @@ public class MapManager {
 			if (map.getMaxPlayers() >= players)
 				candidates.add(map);
 		}
-		return new DynamicGameMap(candidates.get((int)(candidates.size() * Math.random())));
+		Integer index = f_mapRotation.get(room);
+		if (index == null) {
+			index = new Integer((int)(Math.random() * candidates.size()));
+			f_mapRotation.put(room, index);
+		} else {
+			f_mapRotation.put(room, ++index);
+		}
+		
+		return new DynamicGameMap(candidates.get(index % candidates.size()));
 	}
 	
 	
