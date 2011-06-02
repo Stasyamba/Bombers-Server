@@ -5,6 +5,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import com.smartfoxserver.v2.entities.User;
 import com.vensella.bombers.dispatcher.PlayerProfile;
+import com.vensella.bombers.game.mapObjects.DynamicGameMap;
 
 public class PlayerGameProfile {
 
@@ -22,12 +23,24 @@ public class PlayerGameProfile {
 	private int f_maxHealth = 3;
 	private int f_health = 3;
 	private int f_bombPowerBonus = 0;
-	private double f_speed = 100.0 / 1000.0;
+	private double f_speed = 100.0;
 	private int f_bombsLeft = 1;
 	
-//	private double f_x;
-//	private double f_y;
-//	private int f_direction;
+	private double f_x;
+	private double f_y;
+	
+	private int f_xi;
+	private int f_yi;
+	
+	private double f_offsetX;
+	private double f_offsetY;
+	private int f_cellX;
+	private int f_cellY;
+	
+	private int f_inputDirection;
+	private int f_viewDirection;
+	
+	private long f_lastMoveCalculation;
 	
 	private User f_user;
 	
@@ -55,6 +68,67 @@ public class PlayerGameProfile {
 	//Methods
 	
 	//TODO: Add parameters tuning in case of aura and bomber selected
+	
+	//Move tracking
+	
+	public long getLastMoveCalculation() { return f_lastMoveCalculation; }
+	public void setLastMoveCalculation(long lastMoveCalculation) { f_lastMoveCalculation = lastMoveCalculation; }
+	
+	public double getX() { return f_x; }
+	public void setX(double X) { f_x = X; }
+	public void addX(double delta) { f_x += delta; }
+	
+	public double getY() { return f_y; }
+	public void setY(double Y) { f_y = Y; }
+	public void addY(double delta) { f_y += delta; }
+	
+	public int getXi() { return f_xi; }
+	public void setXi(int X) { f_xi = X; }
+	public void addXi(int delta) { f_xi += delta; }
+	
+	public int getYi() { return f_yi; }
+	public void setYi(int Y) { f_yi = Y; }
+	public void addYi(int delta) { f_yi += delta; }
+		
+	public int getXCell() { return f_cellX; }
+	public void setXCell(int cellX) { f_cellX = cellX; }
+	public void addXCell(int delta) { f_cellX += delta; }
+	
+	public int getYCell() { return f_cellY; }
+	public void setYCell(int cellY) { f_cellY = cellY; }
+	public void addYCell(int delta) { f_cellY += delta; }
+	
+	public double getXOffset() { return f_offsetX; }
+	public void setXOffset(double offsetX) { f_offsetX = offsetX; }
+	public void addXOffset(double delta) { 
+		f_offsetX += delta; 
+		if (f_offsetX > DynamicGameMap.C_BlockSize) { 
+			f_offsetX -= DynamicGameMap.C_BlockSize;
+			f_cellX += 1;
+		} else if (f_offsetX < 0.0) {
+			f_offsetX += DynamicGameMap.C_BlockSize;
+			f_cellX -= 1;
+		}
+	}
+	
+	public double getYOffset() { return f_offsetY; }
+	public void setYOffset(double offsetY) { f_offsetY = offsetY; }
+	public void addYOffset(double delta) { 
+		f_offsetY += delta; 
+		if (f_offsetY > DynamicGameMap.C_BlockSize) { 
+			f_offsetY -= DynamicGameMap.C_BlockSize;
+			f_cellY += 1;
+		} else if (f_offsetY < 0.0) {
+			f_offsetY += DynamicGameMap.C_BlockSize;
+			f_cellY -= 1;
+		} 
+	}
+	
+	public int getViewDirection() { return f_viewDirection; }
+	public void setViewDirection(int viewDirection) { f_viewDirection = viewDirection; }
+	
+	public int getInputDirection() { return f_inputDirection; }
+	public void setInputDirection(int inputDirection) { f_inputDirection = inputDirection; }
 	
 	//Getters and setters
 	

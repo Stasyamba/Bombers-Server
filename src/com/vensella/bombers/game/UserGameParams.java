@@ -2,6 +2,7 @@ package com.vensella.bombers.game;
 
 import com.smartfoxserver.v2.entities.User;
 
+@Deprecated
 public class UserGameParams {
 	
 	//Basic parameters

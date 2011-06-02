@@ -26,6 +26,11 @@ import com.vensella.bombers.game.mapObjects.DynamicGameMap;
 
 public class BombersGame extends SFSExtension {
 
+	//Constants
+	
+	public final int C_MoveQuantumTicks = 100;
+	public final int C_MoveSyncEventInterval = 5;
+	
 	//Fields
 	
 	private BombersDispatcher f_dispatcher;
@@ -322,6 +327,14 @@ public class BombersGame extends SFSExtension {
 			while (locationBusy[j]) { j = (int)(Math.random() * f_gameField.getMaxPlayers()); }
 			locationBusy[j] = true;
 			
+			gp.setXCell(f_gameField.getStartXAt(j));
+			gp.setYCell(f_gameField.getStartYAt(j));
+			gp.setX(f_gameField.getStartXAt(j) * DynamicGameMap.C_BlockSize);
+			gp.setY(f_gameField.getStartYAt(j) * DynamicGameMap.C_BlockSize);
+			gp.setXi(f_gameField.getStartXAt(j) * DynamicGameMap.C_BlockSizeInt);
+			gp.setYi(f_gameField.getStartYAt(j) * DynamicGameMap.C_BlockSizeInt);
+			
+			
 			SFSObject gameProfile = new SFSObject();
 			gameProfile.putUtfString("UserId", gp.getUser().getName());
 			gameProfile.putInt("StartX", f_gameField.getStartXAt(j));
@@ -341,7 +354,6 @@ public class BombersGame extends SFSExtension {
 		SmartFoxServer.getInstance().getTaskScheduler().schedule(new Runnable() {
 			@Override
 			public void run() {
-				trace(ExtensionLogLevel.WARN, "Starting game, gameId = " + f_gameId);
 				startGame();
 			}
 		}, 3000, TimeUnit.MILLISECONDS);
@@ -351,7 +363,10 @@ public class BombersGame extends SFSExtension {
 	private void startGame() {
 		f_gameId = f_gamesCount++;
 		
+		trace(ExtensionLogLevel.WARN, "Starting [GAME], gameId = " + f_gameId);
+		
 		initializeDeathBlocks();
+		initializeMoveTracking();
 		
 		SFSObject params = new SFSObject();
 		send("game.lobby.gameStarted", params, getParentRoom().getUserList());		
@@ -408,6 +423,98 @@ public class BombersGame extends SFSExtension {
 	
 	//Game process methods
 	
+//	private void processMoveTracking(BombersGame game, DynamicGameMap map) {
+//		long currentTime = System.currentTimeMillis();
+//		
+//		SFSObject move = new SFSObject();
+//		SFSArray coordsX = new SFSArray();
+//		SFSArray coordsY = new SFSArray();
+//		SFSArray inputDirections = new SFSArray();
+//		for (PlayerGameProfile gp : f_gameProfiles.values()) {
+//			long ticks = currentTime - gp.getLastMoveCalculation();
+//			map.calculatePosition(gp, ticks);
+//			gp.setLastMoveCalculation(currentTime);
+//			
+//			coordsX.addDouble(gp.getX());
+//			coordsY.addDouble(gp.getY());
+//			inputDirections.addInt(gp.getInputDirection());
+//		}
+//		move.putSFSArray("CX", coordsX);
+//		move.putSFSArray("CY", coordsY);
+//		move.putSFSArray("ID", inputDirections);
+//		game.send("M", move, game.getParentRoom().getPlayersList());		
+//	}
+	
+//	private void processMoveTrackingAndSetDirection(BombersGame game, DynamicGameMap map, User user, int inputDirection) {
+//		long currentTime = System.currentTimeMillis();
+//		
+//		SFSObject move = new SFSObject();
+//		SFSArray coordsX = new SFSArray();
+//		SFSArray coordsY = new SFSArray();
+//		SFSArray inputDirections = new SFSArray();
+//		for (PlayerGameProfile gp : f_gameProfiles.values()) {
+//			if (gp.getUser() == user) {
+//				long ticks = currentTime - gp.getLastMoveCalculation();
+//				map.calculatePosition(gp, ticks);
+//				gp.setLastMoveCalculation(currentTime);
+//				coordsX.addDouble(gp.getXi() / 1000.0);
+//				coordsY.addDouble(gp.getYi() / 1000.0);
+//				gp.setInputDirection(inputDirection);
+//				inputDirections.addInt(gp.getInputDirection());
+//			} else {
+//				coordsX.addDouble(-1.0);
+//				coordsY.addDouble(-1.0);
+//				inputDirections.addInt(-1);				
+//			}
+//		}
+//		move.putSFSArray("CX", coordsX);
+//		move.putSFSArray("CY", coordsY);
+//		move.putSFSArray("ID", inputDirections);
+//		game.send("M", move, game.getParentRoom().getPlayersList());		
+//	}
+	
+	private void initializeMoveTracking() {
+		trace(ExtensionLogLevel.WARN, "Starting move tracking...");
+		long ts = System.currentTimeMillis();
+		for (PlayerGameProfile gp : f_gameProfiles.values()) {
+			gp.setLastMoveCalculation(ts);
+		}
+		addGameEvent(new GameEvent(this) {
+			private int count = 0;
+			@Override
+			protected void ApplyOnGame(BombersGame game, DynamicGameMap map) {
+				long currentTime = System.currentTimeMillis();		
+				if (count == C_MoveSyncEventInterval) {
+					SFSObject move = new SFSObject();
+					SFSArray coordsX = new SFSArray();
+					SFSArray coordsY = new SFSArray();
+					SFSArray inputDirections = new SFSArray();
+					for (PlayerGameProfile gp : f_gameProfiles.values()) {
+						long ticks = currentTime - gp.getLastMoveCalculation();
+						map.calculatePosition(gp, ticks);
+						gp.setLastMoveCalculation(currentTime);
+						coordsX.addInt(gp.getXi());
+						coordsY.addInt(gp.getYi());
+						inputDirections.addInt(gp.getInputDirection());
+					}
+					move.putSFSArray("CX", coordsX);
+					move.putSFSArray("CY", coordsY);
+					move.putSFSArray("ID", inputDirections);
+					game.send("M", move, game.getParentRoom().getPlayersList());
+					count = 0;
+				} else {
+					for (PlayerGameProfile gp : f_gameProfiles.values()) {
+						long ticks = currentTime - gp.getLastMoveCalculation();
+						map.calculatePosition(gp, ticks);
+						gp.setLastMoveCalculation(currentTime);
+					}
+					count++;
+				}
+				addDelayedGameEvent(this, C_MoveQuantumTicks);
+			}
+		});
+	}
+	
 	private void initializeDeathBlocks() {
 		addDelayedGameEvent(new GameEvent(this) {
 			
@@ -463,7 +570,7 @@ public class BombersGame extends SFSExtension {
 				}	
 				game.addDelayedGameEvent(this, 1250);
 			}
-		}, 2*45*1000);
+		}, 10 * 2*45*1000);
 	}
 	
 	private void killPlayer(PlayerGameProfile player) {
@@ -500,6 +607,39 @@ public class BombersGame extends SFSExtension {
 						send("game.playerDamaged", params, getParentRoom().getPlayersList());
 					}
 				} 
+			}
+		});
+	}
+	
+	public void processInputDirectionChanged(final User user, final int inputDirection) {
+		addGameEvent(new GameEvent(this) {
+			@Override
+			protected void ApplyOnGame(BombersGame game, DynamicGameMap map) {
+				long currentTime = System.currentTimeMillis();
+				
+				SFSObject move = new SFSObject();
+				SFSArray coordsX = new SFSArray();
+				SFSArray coordsY = new SFSArray();
+				SFSArray inputDirections = new SFSArray();
+				for (PlayerGameProfile gp : f_gameProfiles.values()) {
+					if (gp.getUser() == user) {
+						long ticks = currentTime - gp.getLastMoveCalculation();
+						map.calculatePosition(gp, ticks);
+						gp.setLastMoveCalculation(currentTime);
+						coordsX.addInt(gp.getXi());
+						coordsY.addInt(gp.getYi());
+						gp.setInputDirection(inputDirection);
+						inputDirections.addInt(gp.getInputDirection());
+					} else {
+						coordsX.addInt(-1);
+						coordsY.addInt(-1);
+						inputDirections.addInt(-1);				
+					}
+				}
+				move.putSFSArray("CX", coordsX);
+				move.putSFSArray("CY", coordsY);
+				move.putSFSArray("ID", inputDirections);
+				game.send("M", move, game.getParentRoom().getPlayersList());
 			}
 		});
 	}

@@ -138,7 +138,6 @@ public class BombersDispatcher extends SFSExtension {
 								trace (ExtensionLogLevel.DEBUG, "[Notice] Event dropped by kernel");
 							}
 						} catch (Exception ex) {
-							//TODO: Add trace attributes
 							trace(ExtensionLogLevel.ERROR, "[Warning] " + ex.toString());
 							trace(ExtensionLogLevel.ERROR, (Object[])ex.getStackTrace());
 						}
@@ -182,6 +181,10 @@ public class BombersDispatcher extends SFSExtension {
 		addRequestHandler("interface.takePrize", InterfaceTakePrizeEventHandler.class);
 		addRequestHandler("interface.tryLuck", InterfaceTryLuckEventHandler.class);
 		addRequestHandler("interface.buyLuck", InterfaceBuyLuckEventHandler.class);
+		
+		addRequestHandler("admin.reloadMapManager", AdminReloadMapManagerEventHandler.class);
+		addRequestHandler("admin.reloadPricelistManager", AdminReloadPricelistManagerEventHandler.class);
+		
 		 		
 		trace(ExtensionLogLevel.WARN, "Bombers zone dispatcher init() end");
 	}
@@ -189,6 +192,7 @@ public class BombersDispatcher extends SFSExtension {
 	@Override
 	public void destroy()
 	{
+		//getParentZone().setActive(false);
 		//TODO: Inform users about server reset
 		//TODO: Disconnect all users to connect them after few seconds
 		//TODO: Free all resources (threads, timers, etc..)
@@ -285,7 +289,7 @@ public class BombersDispatcher extends SFSExtension {
 					st.executeUpdate();
 					
 					conn.commit();
-					conn.setAutoCommit(false);
+					conn.setAutoCommit(true);
 					
 					//Give prize to inviter if possible 
 					SFSObject prize = f_prizesCache.get(userId);
@@ -712,5 +716,26 @@ public class BombersDispatcher extends SFSExtension {
 		}
 	}
 	
+	//Admin tools
+	
+	private boolean isAdmin(String login) {
+		return UserLoginEventHandler.isTestLogin(login);
+	}
+	
+	public void adminForceMapsReload(User user) {
+		if (isAdmin(user.getName())) {
+			trace(ExtensionLogLevel.WARN, "Reloading MAP manager!");
+			
+			f_mapManager = new MapManager(this);
+		}
+	}
+	
+	public void adminForcePricelistReload(User user) {
+		if (isAdmin(user.getName())) {
+			trace(ExtensionLogLevel.WARN, "Reloading PRICELIST manager!");
+			
+			f_pricelistManager = new PricelistManager(this);
+		}		
+	}
 	
 }

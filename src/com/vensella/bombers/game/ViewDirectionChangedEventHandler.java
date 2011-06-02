@@ -6,6 +6,7 @@ import com.smartfoxserver.v2.entities.User;
 import com.smartfoxserver.v2.entities.data.ISFSObject;
 import com.smartfoxserver.v2.extensions.BaseClientRequestHandler;
 
+@Deprecated
 @Instantiation(InstantiationMode.SINGLE_INSTANCE)
 public class ViewDirectionChangedEventHandler extends BaseClientRequestHandler {
 

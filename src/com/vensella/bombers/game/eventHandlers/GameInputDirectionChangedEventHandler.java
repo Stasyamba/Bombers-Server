@@ -14,7 +14,9 @@ public class GameInputDirectionChangedEventHandler extends
 	@Override
 	public void handleClientRequest(User user, ISFSObject params) {
 		BombersGame game = (BombersGame)getParentExtension();
+		int inputDirection = params.getInt("dir");
 		
+		game.processInputDirectionChanged(user, inputDirection);
 		send("game.IDC", params, game.getParentRoom().getPlayersList());
 	}
 
