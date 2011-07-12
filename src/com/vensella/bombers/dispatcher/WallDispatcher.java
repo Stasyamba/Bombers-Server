@@ -8,7 +8,6 @@ import com.smartfoxserver.v2.extensions.ExtensionLogLevel;
 import com.smartfoxserver.v2.extensions.SFSExtension;
 import com.vensella.bombers.dispatcher.eventHandlers.UserJoinWallZoneEventHandler;
 import com.vensella.bombers.dispatcher.eventHandlers.UserLoginEventHandler;
-import com.vensella.bombers.dispatcher.eventHandlers.WallSubmitPrizeEventHandler;
 
 public class WallDispatcher extends SFSExtension {
 
@@ -29,7 +28,7 @@ public class WallDispatcher extends SFSExtension {
 		addEventHandler(SFSEventType.USER_LOGIN, UserLoginEventHandler.class);
 		addEventHandler(SFSEventType.USER_JOIN_ZONE, UserJoinWallZoneEventHandler.class);
 		
-		addRequestHandler("bombersWall.submitPrize", WallSubmitPrizeEventHandler.class);
+//		addRequestHandler("bombersWall.submitPrize", WallSubmitPrizeEventHandler.class);
 		
 		trace(ExtensionLogLevel.WARN, "Wall dispatcher init() end");
 	}
@@ -54,6 +53,7 @@ public class WallDispatcher extends SFSExtension {
 		send("bombersWall.isRegisteredLoaded", params, user);
 	}
 	
+	@Deprecated
 	public void submitPrize(User user, String postCreatorId) {	
 		SFSObject prize = getRandomPrize();
 		prize.putUtfString("PostCreatorId", postCreatorId);
@@ -66,6 +66,7 @@ public class WallDispatcher extends SFSExtension {
 		});
 	}
 	
+	@Deprecated
 	private SFSObject getRandomPrize() {
 		SFSObject prize = new SFSObject();
 		prize.putInt("rc0", (int)(10 * Math.random() + 6.0));

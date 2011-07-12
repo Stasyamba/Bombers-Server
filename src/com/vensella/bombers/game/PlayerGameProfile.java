@@ -9,6 +9,12 @@ import com.vensella.bombers.game.mapObjects.DynamicGameMap;
 
 public class PlayerGameProfile {
 
+	//Constants
+	
+	public static int C_HealthQuantum = 5;
+	
+	public static long C_ImmortalTime = 3000;
+	
 	//Fields
 	
 	private boolean f_isAlive = true;
@@ -20,8 +26,8 @@ public class PlayerGameProfile {
 	private int f_auraTwo;
 	private int f_auraThree;
 	
-	private int f_maxHealth = 3;
-	private int f_health = 3;
+	private int f_maxHealth = 3 * C_HealthQuantum;
+	private int f_health = 3 * C_HealthQuantum;
 	private int f_bombPowerBonus = 0;
 	private double f_speed = 100.0;
 	private int f_bombsLeft = 1;
@@ -149,6 +155,10 @@ public class PlayerGameProfile {
 		f_isAlive = !(f_health <= 0);
 	}
 	public void addMaxHealth(int delta) { f_maxHealth += delta; }
+	
+	private long f_damageTime = 0;
+	public long getDamageTime() { return f_damageTime; }
+	public void setDamageTime(long time) { f_damageTime = time; }
 	
 	public double getSpeed() { return f_speed; }
 	public void addSpeed(double ratio) { f_speed *= ratio; }

@@ -7,15 +7,19 @@ import com.smartfoxserver.v2.entities.data.ISFSObject;
 import com.smartfoxserver.v2.extensions.BaseClientRequestHandler;
 import com.vensella.bombers.dispatcher.BombersDispatcher;
 
-@Deprecated
 @Instantiation(InstantiationMode.SINGLE_INSTANCE)
-public class InterfaceTakePrizeEventHandler extends BaseClientRequestHandler {
+public class MissionSubmitResultEventHandler extends BaseClientRequestHandler {
 
 	@Override
 	public void handleClientRequest(User user, ISFSObject params) {
 		BombersDispatcher dispatcher = (BombersDispatcher)getParentExtension();
-
-		dispatcher.takePrize(user);
+		String missionId = params.getUtfString("interface.missions.submitResult.f.missionId");
+		int token = params.getInt("interface.missions.submitResult.f.token");;
+		boolean isBronze = params.getBool("interface.missions.submitResult.f.isBronze");
+		boolean isSilver = params.getBool("interface.missions.submitResult.f.isSilver");
+		boolean isGold = params.getBool("interface.missions.submitResult.f.isGold");
+		
+		dispatcher.getInterfaceManager().submitMissionResult(user, token, missionId, isBronze, isSilver, isGold);
 	}
 
 }

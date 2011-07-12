@@ -17,10 +17,14 @@ public class DBQueryManager {
 	
 	public static final String SqlSelectPlayerExistance = "select count(*) as `C` from `Users` where `Id` = ?";
 	
+	public static final String SqlSelectUsersInfo = "select `Id`, `Nick`, `Experience`, `Photo` from `Users` " +
+													"where `Id` in (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+	
 	public static final String SqlSelectPlayerData = "select * from `Users` where `Id` = ?";
 	public static final String SqlSelectPlayerLocations = "select * from `LocationsOpen` where `UserId` = ?";
 	public static final String SqlSelectPlayerBombers = "select * from `BombersOpen` where `UserId` =  ?";
 	public static final String SqlSelectPlayerItems = "select * from `WeaponsOpen` where `UserId` = ?";
+	public static final String SqlSelectPlayerMedals = "select * from `Medals` where `UserId` = ?";
 	
 	public static final String SqlSelectPrizeForInviting = "select * from `PrizesFromWall` where `PrizeActivatorId` = ?";
 	
@@ -28,13 +32,15 @@ public class DBQueryManager {
 	public static final String SqlInsertPlayerLocations = "insert into `LocationsOpen` (`UserId`, `LocationsOpen`) values (?, ?)";
 	public static final String SqlInsertPlayerBombers = "insert into `BombersOpen` (`UserId`, `BombersOpen`) values (?, ?)";
 	public static final String SqlInsertPlayerItems = "insert into `WeaponsOpen` (`UserId`, `WeaponsOpen`) values (?, ?)";
+	public static final String SqlInsertPlayerMedals = "insert into `Medals` (`UserId`, `Medals`) values (?, ?)";
 	
 	public static final String SqlUpdateUserDataWhenUserDisconnects = 
 		"update `Users` set `Experience` = ?,  `Energy` = ?, " +
 		"`Nick` = ?, `AuraOne` = ?, `AuraTwo` = ?, `AuraThree` = ?, " +
-		"`RightHand` = ?, `BomberId` = ?, `Photo` = ?, `LastLogin` = ?, `LuckCount` = ? where `Id` = ?";
+		"`RightHand` = ?, `BomberId` = ?, `Photo` = ?, `LastLogin` = ?, `LuckCount` = ?, `TrainingStatus` = ? where `Id` = ?";
 	
 	public static final String SqlUpdatePlayerItems = "update `WeaponsOpen` set `WeaponsOpen` = ? where `UserId` = ?";
+	public static final String SqlUpdatePlayerMedals = "update `Medals` set `Medals` = ? where `UserId` = ?";
 	public static final String SqlAddPlayerResources = 
 		"update `Users` set `Gold` = `Gold` + ?, `Crystal` = `Crystal` + ?, `Adamantium` = `Adamantium` + ?, " +
 		"`Antimatter` = `Antimatter` + ?, `Energy` = `Energy` + ? where `Id` = ?";

@@ -5,6 +5,15 @@ import com.vensella.bombers.dispatcher.GameEvent;
 
 public abstract class DynamicObject {
 	
+	//Constants
+	
+	public static final DynamicObject C_DummyUnwalkable = new DynamicObject(null, false, false) {
+		@Override
+		public GameEvent getActivateEvent() {
+			return null;
+		}
+	};
+	
 	//Fields
 	
 	private boolean f_canBeActivatedByPlayer;

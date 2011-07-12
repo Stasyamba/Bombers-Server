@@ -15,9 +15,12 @@ public class GameInputDirectionChangedEventHandler extends
 	public void handleClientRequest(User user, ISFSObject params) {
 		BombersGame game = (BombersGame)getParentExtension();
 		int inputDirection = params.getInt("dir");
+		int x = params.getInt("x");
+		int y = params.getInt("y");
 		
-		game.processInputDirectionChanged(user, inputDirection);
-		send("game.IDC", params, game.getParentRoom().getPlayersList());
+		game.processInputDirectionChanged(user, inputDirection, x, y);
+		
+		//send("game.IDC", params, game.getParentRoom().getPlayersList());
 	}
 
 }

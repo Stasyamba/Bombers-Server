@@ -15,8 +15,10 @@ public class PlayerProfile {
 
 	//Constants
 	
-	public static final int C_MaximunFreeEnergy = 10;
-	public static final int C_BetaMaximunExperience = 300;
+	public static final int C_EnergyPeriod = 10 * 60;
+	public static final int C_MaximumFreeEnergy = 25;
+	
+	public static final int C_BetaMaximunExperience = 1000;
 	
 	public static final String C_Id = "Id";
 	public static final String C_Nick = "Nick";
@@ -26,6 +28,8 @@ public class PlayerProfile {
 	
 	public static final String C_LastLogin = "LastLogin";
 	public static final String C_LuckCount = "LuckCount";
+	
+	public static final String C_TrainingStatus = "TrainingStatus";
 	
 	public static final String C_CurrentBomberId = "BomberId";
 	public static final String C_RightHandItem = "RightHand";
@@ -53,6 +57,7 @@ public class PlayerProfile {
 	public static final String C_FldLocationsOpen = "LocationsOpen";
 	public static final String C_FldBombersOpen = "BombersOpen";
 	public static final String C_FldWeaponsOpen = "WeaponsOpen";
+	public static final String C_FldMedals = "Medals";
 	
 	public static final String C_SmallCount = "C";
 	
@@ -68,12 +73,16 @@ public class PlayerProfile {
 		f_nick = "Игрок";
 		f_photo = "";
 		
+		f_energy = C_MaximumFreeEnergy;
+		
 		f_locations = new ConcurrentHashMap<Integer, Object>();
 		f_items = new ConcurrentHashMap<Integer, Integer>();
 		f_bombers = new ConcurrentHashMap<Integer, Object>();
+		
+		f_medals = new ConcurrentHashMap<String, Integer>();
 	}
 	
-	public PlayerProfile(ISFSArray profile, ISFSArray locations, ISFSArray items, ISFSArray bombers)
+	public PlayerProfile(ISFSArray profile, ISFSArray locations, ISFSArray items, ISFSArray bombers, ISFSArray medals)
 	{
 		ISFSObject p = profile.getSFSObject(0);
 		f_id = p.getUtfString(C_Id);
@@ -102,6 +111,8 @@ public class PlayerProfile {
 		f_luckCount = p.getInt(C_LuckCount);
 		f_lastLogin = p.getLong(C_LastLogin);
 		
+		f_trainingStatus = p.getInt(C_TrainingStatus);
+		
 		f_locations = new ConcurrentHashMap<Integer, Object>();
 		for (int i = 0; i < locations.size(); ++i)
 		{
@@ -119,6 +130,12 @@ public class PlayerProfile {
 		for (int i = 0; i < bombers.size(); ++i)
 		{
 			f_bombers.put(bombers.getInt(i), new Object());
+		}
+		
+		f_medals = new ConcurrentHashMap<String, Integer>();
+		for (int i = 0; i < medals.size(); ++i)
+		{
+			f_medals.put(medals.getSFSArray(i).getUtfString(0), medals.getSFSArray(i).getInt(1));
 		}
 	}
 	
@@ -152,13 +169,23 @@ public class PlayerProfile {
 	
 	private int f_luckCount;
 	
+	private int f_trainingStatus;
+	
 	private Map<Integer, Object> f_locations;
 	private Map<Integer, Integer> f_items;
 	private Map<Integer, Object> f_bombers;
 	
+	private Map<String, Integer> f_medals;
+	
+	private int f_missionToken;
+	private long f_missionStartTime;
+	
 	//Getters and setters
 	
 	public String getId() { return f_id; }
+	
+	public int getTrainingStatus() { return f_trainingStatus; }
+	public void setTrainingStatus(int status) { f_trainingStatus = status; }
 	
 	public long getLastLogin() { return f_lastLogin; }
 	public void setLastLogin(long lastLogin) { f_lastLogin = lastLogin; }
@@ -190,7 +217,17 @@ public class PlayerProfile {
 		return level;
 	}
 	
-	public int getEnergy() { return f_energy; }
+	public int getEnergy() { 
+		long ts = System.currentTimeMillis() / 1000;
+		long p = ts - f_lastLogin;
+		if (p >= C_EnergyPeriod) {
+			if (f_energy < C_MaximumFreeEnergy) {
+				f_energy = Math.min(C_MaximumFreeEnergy, f_energy + (int)(p / C_EnergyPeriod));
+			} 
+			f_lastLogin = ts;
+		}
+		return f_energy; 
+	}
 	public void setEnergy(int energy) { f_energy = energy; }
 	public void addEnergy(int delta) { f_energy += delta; }
 	
@@ -245,6 +282,7 @@ public class PlayerProfile {
 	
 	public Map<Integer, Integer> getItems() { return f_items; }
 	public boolean hasItemInStack(int itemId) { return f_items.containsKey(itemId); }
+	public boolean hasItems(int itemId, int count) { return f_items.containsKey(itemId) && f_items.get(itemId) >= count; }
 	public int itemCount(int itemId) { return f_items.get(itemId); }
 	public void addItems(int itemId, int delta) { 
 		if (f_items.containsKey(itemId)) { 
@@ -268,6 +306,25 @@ public class PlayerProfile {
 		return f_bombers.containsKey(bomberId);
 	}
 
+	public boolean hasMedal(String missionId, int medal) {
+		Integer medals = f_medals.get(missionId);
+		return medals != null && (medals & medal) != 0;
+	}
+	public void setMedal(String missionId, int medal) {
+		int medals = 0;
+		if (f_medals.containsKey(missionId)) {
+			medals = f_medals.get(missionId);
+		}
+		medals |= medal;
+		f_medals.put(missionId, medals);
+	}
+	
+	
+	public int getMissionToken() { return f_missionToken; }
+	public void setMissionToken(int token) { f_missionToken = token; }
+	
+	public long getMissionStartTime() { return f_missionStartTime; }
+	public void setMissionStartTime(long ts) { f_missionStartTime = ts; }
 	
 	//Methods
 	
@@ -292,11 +349,24 @@ public class PlayerProfile {
 			SFSObject itemInfo = new SFSObject();
 			int itemId = itemIds.get(i);
 			int itemCount = f_items.get(itemId);
+			//if (itemCount > 0) {
 			itemInfo.putInt(C_Id, itemId);
 			itemInfo.putInt(C_SmallCount, itemCount);
 			items.addSFSObject(itemInfo);
+			//}
 		}
 		return items;
+	}
+	
+	public SFSArray getMedalsData() {
+		SFSArray medals = new SFSArray();
+		for (String m : f_medals.keySet()) {
+			SFSArray sfsm = new SFSArray();
+			sfsm.addUtfString(m);
+			sfsm.addInt(f_medals.get(m));
+			medals.addSFSArray(sfsm);
+		}
+		return medals;
 	}
 	
 	
@@ -328,6 +398,8 @@ public class PlayerProfile {
 		profile.putInt(C_LuckCount, f_luckCount);
 		profile.putLong(C_LastLogin, f_lastLogin);
 		
+		profile.putInt(C_TrainingStatus, f_trainingStatus);
+		
 		ISFSArray locations = new SFSArray();
 		locations.addIntArray(f_locations.keySet());
 		profile.putSFSArray(C_FldLocationsOpen, locations);
@@ -338,18 +410,29 @@ public class PlayerProfile {
 		
 		ISFSArray items = new SFSArray();
 		ArrayList<Integer> itemIds = new ArrayList<Integer>(f_items.keySet());
-		
 		int count = itemIds.size();
 		for (int i = 0; i < count; ++i)
 		{
 			ISFSObject itemInfo = new SFSObject();
 			int itemId = itemIds.get(i);
 			int itemCount = f_items.get(itemId);
+//			if (itemCount > 0) {
 			itemInfo.putInt(C_WeaponId, itemId);
 			itemInfo.putInt(C_Count, itemCount);
 			items.addSFSObject(itemInfo);
+//			}
 		}
 		profile.putSFSArray(C_FldWeaponsOpen, items);
+		
+		SFSArray medals = new SFSArray();
+		for (String missionId : f_medals.keySet()) {
+			SFSArray sfsMedalInfo = new SFSArray();
+			sfsMedalInfo.addUtfString(missionId);
+			sfsMedalInfo.addInt(f_medals.get(missionId));
+			medals.addSFSArray(sfsMedalInfo);
+		}
+		profile.putSFSArray(C_FldMedals, medals);
+		
 		
 		return profile;
 	}

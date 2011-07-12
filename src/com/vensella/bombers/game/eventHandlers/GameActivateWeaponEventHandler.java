@@ -10,11 +10,11 @@ public class GameActivateWeaponEventHandler extends BaseClientRequestHandler {
 	@Override
 	public void handleClientRequest(User user, ISFSObject params) {
 		BombersGame game = (BombersGame)getParentExtension();
-		int x = params.getInt("game.AW.f.x");
-		int y = params.getInt("game.AW.f.y");
+//		int x = params.getInt("game.AW.f.x");
+//		int y = params.getInt("game.AW.f.y");
 		int t = params.getInt("game.AW.f.t");
 		
-		game.activateWeapon(user, t, x, y);
+		game.activateWeapon(user, t);
 	}
 
 }

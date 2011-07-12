@@ -1,10 +1,29 @@
 package com.vensella.bombers.dispatcher;
 
+import java.util.ArrayList;
+import java.util.Collection;
+
 import com.smartfoxserver.v2.entities.User;
+import com.smartfoxserver.v2.entities.data.ISFSArray;
 import com.smartfoxserver.v2.entities.data.SFSObject;
 import com.smartfoxserver.v2.extensions.ExtensionLogLevel;
+import com.vensella.bombers.dispatcher.PricelistManager.Mission;
+import com.vensella.bombers.dispatcher.PricelistManager.Mission.MissionReward;
 
 public class InterfaceManager {
+	
+	//Constants
+	
+	public static final int C_GiveExperienceTrainingStatus = 3;
+	public static final int C_GiveExperienceOnTraining = 30;
+	public static final int C_FinalTrainingStatus = 5;
+	public static final int C_EndTutorial = -1;
+	
+	public static final int C_DefaultMissionToken = 0;
+	
+	public static final int C_BronzeMedal = 1;
+	public static final int C_SilverMedal = 2;
+	public static final int C_GoldMedal = 4;
 	
 	//Fields
 	
@@ -15,6 +34,26 @@ public class InterfaceManager {
 	public InterfaceManager(BombersDispatcher dispatcher)
 	{
 		f_dispatcher = dispatcher;
+	}
+	
+	//Methods for training
+	
+	public void setTrainingStatus(User user, int status) {
+		PlayerProfile profile = f_dispatcher.getUserProfile(user);
+		if (profile.getTrainingStatus() == C_EndTutorial) {
+			return;
+		}
+		if (status == C_EndTutorial || (profile.getTrainingStatus() + 1 == status && status <= C_FinalTrainingStatus)) {
+			profile.setTrainingStatus(status);
+			SFSObject params = new SFSObject();
+			params.putBool("interface.setTrainingStatus.result.f.status", true);
+			params.putInt("interface.setTrainingStatus.result.f.trainingStatus", status);
+			if (status == C_GiveExperienceTrainingStatus) {
+				profile.addExperience(C_GiveExperienceOnTraining);
+				params.putInt("interface.setTrainingStatus.result.f.youNewExperience", profile.getExperience());
+			}
+			f_dispatcher.send("interface.setTrainingStatus.result", params, user);
+		}
 	}
 	
 	//Methods for shopping
@@ -92,11 +131,11 @@ public class InterfaceManager {
 						
 						SFSObject params = new SFSObject();
 						params.putBool("interface.buyResources.result.fields.status", true);
-						params.putInt("interface.buyResources.result.fields.resourceType0", rc0);
-						params.putInt("interface.buyResources.result.fields.resourceType1", rc1);
-						params.putInt("interface.buyResources.result.fields.resourceType2", rc2);
-						params.putInt("interface.buyResources.result.fields.resourceType3", rc3);
-						params.putInt("interface.buyResources.result.fields.resourceType4", rc4);
+						params.putInt("interface.buyResources.result.fields.resourceType0", profile.getGold());
+						params.putInt("interface.buyResources.result.fields.resourceType1", profile.getCrystal());
+						params.putInt("interface.buyResources.result.fields.resourceType2", profile.getAdamantium());
+						params.putInt("interface.buyResources.result.fields.resourceType3", profile.getAntimatter());
+						params.putInt("interface.buyResources.result.fields.resourceType4", profile.getEnergy());
 						f_dispatcher.send("interface.buyResources.result", params, user);
 					}
 				}, 
@@ -109,6 +148,18 @@ public class InterfaceManager {
 						f_dispatcher.send("interface.buyResources.result", params, user);
 					}
 				});
+	}
+	
+	public void collectCollection(User user, int collectionId) {
+		PlayerProfile profile = f_dispatcher.getUserProfile(user);
+		SFSObject params = new SFSObject();
+		if (f_dispatcher.getPricelistManager().collectCollection(collectionId, profile)) {
+			params.putInt("interface.collectCollection.result.f.collectionId", collectionId);
+			params.putBool("interface.collectCollection.result.f.status", true);
+		} else {
+			params.putBool("interface.collectCollection.result.f.status", false);
+		}
+		f_dispatcher.send("interface.collectCollection.result", params, user);
 	}
 	
 	//Methods for private info
@@ -133,9 +184,9 @@ public class InterfaceManager {
 	}
 	
 	public void setNick(User user, String nick) {
-		if (nick.length() > 10 || nick.length() < 2) {
+		if (nick.length() > 14 || nick.length() < 2) {
 			SFSObject params = new SFSObject();
-			params.putBool("interface.setNick.result.fields.status", true);
+			params.putBool("interface.setNick.result.fields.status", false);
 			f_dispatcher.send("interface.setNick.result", params, user);
 		} else {
 			f_dispatcher.getUserProfile(user).setNick(nick);
@@ -146,6 +197,168 @@ public class InterfaceManager {
 		}
 	}
 	
+	public void getUsersInfo(final User user, Collection<String> ids) {
+		if (ids.size() < 12) {
+			while (ids.size() < 12) {
+				ids.add("0");
+			}
+		}
+		else if (ids.size() > 12) {
+			Collection<String> newIds = new ArrayList<String>();
+			int i = 0;
+			for (String id : ids) {
+				if (i == 12) {
+					break;
+				}
+				newIds.add(id);
+				i++;
+			}
+			ids = newIds;
+		}
+		ArrayList<String> c = new ArrayList<String>(ids);
+		DBQueryManager manager = f_dispatcher.getDbManager();
+		manager.ScheduleQuery(
+				DBQueryManager.SqlSelectUsersInfo, 
+				new Object[] {
+					c.get(0), c.get(1), c.get(2), c.get(3), c.get(4), c.get(5), 
+					c.get(6), c.get(7), c.get(8), c.get(9), c.get(10), c.get(11)
+				},
+				manager.new QueryCallback() {
+					@Override
+					public void run(ISFSArray result) {
+						SFSObject params = new SFSObject();
+						params.putSFSArray("interface.getUsersInfo.result.f.infos", result);
+						f_dispatcher.send("interface.getUsersInfo.result", params, user);
+					}
+				}
+			);
+	}
+	
+	//Methods for single games
+	
+	public void startMission(User user, String missionId) {
+		PlayerProfile profile = f_dispatcher.getUserProfile(user);
+		if (profile.getMissionToken() != C_DefaultMissionToken) {
+			return;
+		}
+		Mission mission = f_dispatcher.getPricelistManager().getMission(missionId);
+		SFSObject params = new SFSObject();
+		if (profile.getEnergy() < mission.getEnergyCost()) {
+			params.putBool("interface.missions.start.result.f.status", false);
+		}
+		else {
+			profile.addEnergy(-mission.getEnergyCost());
+			profile.setMissionStartTime(System.currentTimeMillis());
+			profile.setMissionToken((int)(1000000 * Math.random()));
+		
+			//f_dispatcher
+			//	.trace("User " + user.getName() + " starting mission "+ missionId + ", token = " + profile.getMissionToken());
+			
+			params.putBool("interface.missions.start.result.f.status", true);
+			params.putUtfString("interface.missions.start.result.f.missionId", missionId);
+			params.putInt("interface.missions.start.result.f.token", profile.getMissionToken());
+			params.putInt("interface.missions.start.result.f.youNewEnergy", profile.getEnergy());
+		}
+		f_dispatcher.send("interface.missions.start.result", params, user); 
+	}
+	
+	public void submitMissionResult(User user, int token, String missionId, boolean isBronze, boolean isSilver, boolean isGold) {
+		PlayerProfile profile = f_dispatcher.getUserProfile(user);
+		
+		//f_dispatcher
+		//	.trace("User " + user.getName() + " end mission "+ missionId + ", token = " + profile.getMissionToken());
+		
+		if (!isBronze && !isSilver && !isGold) {
+			profile.setMissionToken(C_DefaultMissionToken);
+			
+			SFSObject params = new SFSObject();
+			params.putBool("interface.missions.submitResult.result.f.status", true);
+			f_dispatcher.send("interface.missions.submitResult.result", params, user); 
+		} else {
+			if (token != profile.getMissionToken() || System.currentTimeMillis() < profile.getMissionStartTime() + 20000) {
+				return;
+			}
+			Mission mission = f_dispatcher.getPricelistManager().getMission(missionId);
+			if (mission == null) {
+				return;
+			}
+			profile.setMissionToken(C_DefaultMissionToken);
+			boolean medalTaken = false;
+			
+			SFSObject params = new SFSObject();
+			params.putBool("interface.missions.submitResult.result.f.status", true);			
+			if (isBronze && !profile.hasMedal(missionId, C_BronzeMedal)) {
+				profile.setMedal(missionId, C_BronzeMedal);
+				getReward(profile, mission.getBronzeReward());
+				medalTaken = true;
+				
+				//f_dispatcher.trace("Bronze medal");
+				
+				params.putSFSObject("interface.missions.submitResult.result.f.bronze", mission.getBronzeReward().toSFSObject());
+			} else {
+				//params.putSFSObject("interface.missions.submitResult.result.f.bronze", SFSObject.newInstance());
+			}
+			if (isSilver && !profile.hasMedal(missionId, C_SilverMedal)) {
+				profile.setMedal(missionId, C_SilverMedal);
+				getReward(profile, mission.getSilverReward());
+				medalTaken = true;
+				
+				//f_dispatcher.trace("Silver medal");
+				
+				params.putSFSObject("interface.missions.submitResult.result.f.silver", mission.getSilverReward().toSFSObject());
+			} else {
+				//params.putSFSObject("interface.missions.submitResult.result.f.silver", SFSObject.newInstance());
+			}
+			if (isGold && !profile.hasMedal(missionId, C_GoldMedal)) {
+				profile.setMedal(missionId, C_GoldMedal);
+				getReward(profile, mission.getGoldReward());
+				medalTaken = true;
+				
+				//f_dispatcher.trace("Gold medal");
+				
+				params.putSFSObject("interface.missions.submitResult.result.f.gold", mission.getGoldReward().toSFSObject());
+			} else {
+				//params.putSFSObject("interface.missions.submitResult.result.f.gold", SFSObject.newInstance());
+			}
+			if (medalTaken) {
+				f_dispatcher.getDbManager().ScheduleUpdateQuery(
+						DBQueryManager.SqlUpdatePlayerMedals, new Object[] { 
+						profile.getMedalsData().toJson(), 
+						profile.getId() 
+					});				
+			}
+			
+			f_dispatcher.send("interface.missions.submitResult.result", params, user); 
+		}
+	}
+	
+	private void getReward(PlayerProfile profile, MissionReward reward) {
+		profile.addExperience(reward.getExperienceReward());
+		
+		profile.addGold(reward.getGoldReward());
+		profile.addCrystal(reward.getCrystalReward());
+		profile.addAdamantium(reward.getAdamantiumReward());
+		profile.addAntimatter(reward.getAntimatterReward());
+		profile.addEnergy(reward.getEnergyReward());
+		f_dispatcher.getDbManager().ScheduleUpdateQuery(
+				DBQueryManager.SqlAddPlayerResources, new Object[] {
+				reward.getGoldReward(),
+				reward.getCrystalReward(),
+				reward.getAdamantiumReward(),
+				reward.getAntimatterReward(),
+				reward.getEnergyReward(),
+				profile.getId()
+			});
+		
+		for (int itemId : reward.getItemsReward().keySet()) {
+			profile.addItems(itemId, reward.getItemsReward().get(itemId));
+		}
+		f_dispatcher.getDbManager().ScheduleUpdateQuery(
+				DBQueryManager.SqlUpdatePlayerItems, new Object[] { 
+				profile.getItemsData().toJson(), 
+				profile.getId() 
+			});
+	}
 	
 	
 	

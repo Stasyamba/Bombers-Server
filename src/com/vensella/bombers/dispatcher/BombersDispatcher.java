@@ -34,8 +34,8 @@ public class BombersDispatcher extends SFSExtension {
 	//Public constants
 	//TODO: Load from configuration
 	
-	public static final String C_ApiId = "2206924";
-	public static final String C_ApiSecret = "yKv1NfQ1a1H9vXvxZ1hF";
+	public static final String C_ApiId = "2141693";
+	public static final String C_ApiSecret = "jqKgEDXPd4T2zojPaRcv";
 	
 	//Flags
 	
@@ -50,13 +50,10 @@ public class BombersDispatcher extends SFSExtension {
 	private static final int C_DelayedEventTimersCount = 1;
 	
 	//Special volatile fields
-	
-	private volatile int TicksCount = 0;
 	private volatile int GamesCount = 0;
 	
 	//Event model fields
 	
-	private Timer f_ticksTimer;
 	private ScheduledThreadPoolExecutor f_delayedEventsExecutor;
 	
 	private Thread[] f_workingThreads;
@@ -75,12 +72,13 @@ public class BombersDispatcher extends SFSExtension {
 	private Map<String, PlayerProfile> f_profileCache;
 	private Map<User, PlayerProfile> f_profiles;
 	
+	@Deprecated
 	private Map<String, SFSObject> f_prizesCache;
 	
 	//Game settings
 	
-	private int C_LuckCountPerDay = 3;
-	private int C_EnergyPerDay = 2;
+//	private int C_LuckCountPerDay = 3;
+//	private int C_EnergyPerDay = 2;
 	
 	//Constructors and initializers
 	
@@ -104,15 +102,7 @@ public class BombersDispatcher extends SFSExtension {
 		f_prizesCache = new ConcurrentHashMap<String, SFSObject>();
 		
 		//Initialize of internal structure
-		
-		f_ticksTimer = new Timer("TicksTimer");
-		f_ticksTimer.schedule(new TimerTask() {
-			@Override
-			public void run() {
-				TicksCount++;
-			}
-		}, 0, 1000);
-		
+	
 		f_delayedEventsExecutor = new ScheduledThreadPoolExecutor(C_DelayedEventTimersCount);
 		
 		f_workingQueues = (LinkedBlockingQueue<GameEvent>[])Array.newInstance(
@@ -167,6 +157,7 @@ public class BombersDispatcher extends SFSExtension {
 		addRequestHandler("interface.buyItem", InterfaceBuyItemEventHandler.class);
 		addRequestHandler("interface.dropItem", InterfaceDropItemEventHandler.class);
 //		addRequestHandler("interface.buyBomber", InterfaceBuyBomberEventHandler.class);
+		addRequestHandler("interface.collectCollection", InterfaceCollectCollectionEventHandler.class);
 		
 //		addRequestHandler("interface.setAura", null);
 //		addRequestHandler("interface.setRightHandItem", null);	
@@ -174,13 +165,17 @@ public class BombersDispatcher extends SFSExtension {
 		addRequestHandler("interface.setNick", InterfaceSetNickEventHandler.class);
 		addRequestHandler("interface.setPhoto", InterfaceSetPhotoEventHandler.class);
 		
+		addRequestHandler("interface.getUsersInfo", InterfaceGetUsersInfoEventHandler.class);
+		
+		addRequestHandler("interface.setTrainingStatus", InterfaceSetTrainingStatusEventHandler.class);
+		
 //		addRequestHandler("inerface.openLocation", null);
-//		addRequestHandler("inerface.playSingleGame", null);
-//		addRequestHandler("inerface.takeSingleGamePrize", null);
+		addRequestHandler("interface.missions.start", MissionStartEventHandler.class);
+		addRequestHandler("interface.missions.submitResult", MissionSubmitResultEventHandler.class);
 
-		addRequestHandler("interface.takePrize", InterfaceTakePrizeEventHandler.class);
-		addRequestHandler("interface.tryLuck", InterfaceTryLuckEventHandler.class);
-		addRequestHandler("interface.buyLuck", InterfaceBuyLuckEventHandler.class);
+//		addRequestHandler("interface.takePrize", InterfaceTakePrizeEventHandler.class);
+//		addRequestHandler("interface.tryLuck", InterfaceTryLuckEventHandler.class);
+//		addRequestHandler("interface.buyLuck", InterfaceBuyLuckEventHandler.class);
 		
 		addRequestHandler("admin.reloadMapManager", AdminReloadMapManagerEventHandler.class);
 		addRequestHandler("admin.reloadPricelistManager", AdminReloadPricelistManagerEventHandler.class);
@@ -201,8 +196,6 @@ public class BombersDispatcher extends SFSExtension {
 	}
 	
 	//Special methods
-	
-	public int getTicksCount() { return TicksCount;	}
 	
 	public MoneyManager getMoneyManager() { return f_moneyManager; }
 	
@@ -250,6 +243,7 @@ public class BombersDispatcher extends SFSExtension {
 				profile.getPhoto(),
 				profile.getLastLogin(),
 				profile.getLuckCount(),
+				profile.getTrainingStatus(),
 				profile.getId()
 		});
 	}
@@ -284,6 +278,11 @@ public class BombersDispatcher extends SFSExtension {
 					st.executeUpdate();
 					
 				    st = conn.prepareStatement(DBQueryManager.SqlInsertPlayerItems);
+					st.setString(1, userId);
+					st.setString(2, dummyJson);
+					st.executeUpdate();
+					
+				    st = conn.prepareStatement(DBQueryManager.SqlInsertPlayerMedals);
 					st.setString(1, userId);
 					st.setString(2, dummyJson);
 					st.executeUpdate();
@@ -343,7 +342,13 @@ public class BombersDispatcher extends SFSExtension {
 						SFSArray.newFromResultSet(st.executeQuery()).getSFSObject(0).getUtfString("WeaponsOpen")
 					);
 					
-					profile = new PlayerProfile(profileData, locationsData, itemsData, bombersData);
+					st = conn.prepareStatement(DBQueryManager.SqlSelectPlayerMedals);
+					st.setString(1, userId);
+					ISFSArray medalsData = SFSArray.newFromJsonData(
+						SFSArray.newFromResultSet(st.executeQuery()).getSFSObject(0).getUtfString("Medals")
+					);
+					
+					profile = new PlayerProfile(profileData, locationsData, itemsData, bombersData, medalsData);
 				}
 			}
 			catch (Exception ex) {
@@ -392,13 +397,15 @@ public class BombersDispatcher extends SFSExtension {
 		if (profile != null) {
 			f_profiles.put(user, profile);
 			
-			if (profile.getLastLogin() + 86400 < System.currentTimeMillis() / 1000) {
-				profile.addLuckCount(C_LuckCountPerDay);
-				if (profile.getEnergy() + C_EnergyPerDay <= PlayerProfile.C_MaximunFreeEnergy) {
-					profile.addEnergy(C_EnergyPerDay);
-				}
-				profile.setLastLogin(System.currentTimeMillis() / 1000);
-			}
+//			if (profile.getLastLogin() + 86400 < System.currentTimeMillis() / 1000) {
+//				profile.addLuckCount(C_LuckCountPerDay);
+//				if (profile.getEnergy() + C_EnergyPerDay <= PlayerProfile.C_MaximunFreeEnergy) {
+//					profile.addEnergy(C_EnergyPerDay);
+//				}
+//				profile.setLastLogin(System.currentTimeMillis() / 1000);
+//			}
+			profile.getEnergy();
+			profile.setMissionToken(InterfaceManager.C_DefaultMissionToken);
 			
 			ISFSObject params = profile.toSFSObject();
 			
@@ -432,7 +439,7 @@ public class BombersDispatcher extends SFSExtension {
 	}
 	
 	private String findGameNameInternal() {
-		return "r" + TicksCount + "_" + (int)(Math.random() * 10000.0);
+		return "r" + (System.currentTimeMillis() / 1000) + "_" + (int)(Math.random() * 10000.0);
 	}
 	
 	public void fastJoin(User user) {
@@ -630,10 +637,12 @@ public class BombersDispatcher extends SFSExtension {
 		}
 	}
 
+	@Deprecated
 	public void addPrize(String prizeActivatorId, SFSObject prize) {
 		f_prizesCache.put(prizeActivatorId, prize);
 	}
 	
+	@Deprecated
 	public void takePrize(User user) {
 		PlayerProfile profile = getUserProfile(user);
 		SFSObject params = new SFSObject();
@@ -659,6 +668,7 @@ public class BombersDispatcher extends SFSExtension {
 		send("interface.takePrize.result", params, user);
 	}
 	
+	@Deprecated
 	public void tryLuck(User user) {
 		PlayerProfile profile = getUserProfile(user);
 		SFSObject params = new SFSObject();
@@ -701,6 +711,7 @@ public class BombersDispatcher extends SFSExtension {
 		send("interface.tryLuck.result", params, user);
 	}
 	
+	@Deprecated
 	public void buyLuck(User user, int luck) {
 		if (luck == 3) {
 			PlayerProfile profile = getUserProfile(user);

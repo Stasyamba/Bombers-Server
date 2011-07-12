@@ -7,6 +7,7 @@ import com.smartfoxserver.v2.entities.data.ISFSObject;
 import com.smartfoxserver.v2.extensions.BaseClientRequestHandler;
 import com.vensella.bombers.game.BombersGame;
 
+@Deprecated
 @Instantiation(InstantiationMode.SINGLE_INSTANCE)
 public class GameDamagePlayerEventHandler extends BaseClientRequestHandler {
 

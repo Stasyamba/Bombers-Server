@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 //import java.util.concurrent.locks.Lock;
 //import java.util.concurrent.locks.ReentrantLock;
@@ -25,11 +26,15 @@ import com.vensella.bombers.game.mapObjects.DynamicGameMap;
 
 
 public class BombersGame extends SFSExtension {
-
+	
 	//Constants
 	
 	public final int C_MoveQuantumTicks = 100;
 	public final int C_MoveSyncEventInterval = 5;
+	
+	public final int C_BombExplosionInterval = 800;
+	
+	public final int C_DeathWallAppearsSince = 5 * 90 * 1000;
 	
 	//Fields
 	
@@ -57,12 +62,15 @@ public class BombersGame extends SFSExtension {
 	private volatile int f_10secondToStart = 0;
 	private boolean f_isGameStarted = false;
 	
+	private LinkedBlockingQueue<WeaponActivateEvent> f_bombExplosionQueue;
+	
 	//Override methods
 	
 	@Override
 	public void init() {
 		//CriticalSection = new ReentrantLock();
 		lock = new Object();
+		f_bombExplosionQueue = new LinkedBlockingQueue<WeaponActivateEvent>();
 		
 		f_locationId = getParentRoom().getVariable("LocationId").getIntValue();
 		f_scheduleIndex = getParentRoom().getVariable("ScheduleIndex").getIntValue();
@@ -90,10 +98,10 @@ public class BombersGame extends SFSExtension {
 		addRequestHandler("game.lobby.userReady", LobbyUserReadyEventHandler.class);
 		
 		addRequestHandler("game.IDC", GameInputDirectionChangedEventHandler.class);
-		addRequestHandler("game.damagePlayer", GameDamagePlayerEventHandler.class);
+		//addRequestHandler("game.damagePlayer", GameDamagePlayerEventHandler.class);
 		
 		addRequestHandler("game.AW", GameActivateWeaponEventHandler.class);
-		addRequestHandler("game.actDO", GameActivateDynamicObject.class);
+		//addRequestHandler("game.actDO", GameActivateDynamicObject.class);
 		
 	}
 	
@@ -105,6 +113,8 @@ public class BombersGame extends SFSExtension {
 	
 	public int getGameId() { return f_gameId; }
 	
+	//public int getMoveEventId() { return f
+	
 	public int alivePlayersCount() { 
 		int count = 0; 
 		for (PlayerGameProfile gameProfile : f_gameProfiles.values()) {
@@ -114,6 +124,7 @@ public class BombersGame extends SFSExtension {
 	}
 	
 	public DynamicGameMap getGameMap() { return f_gameField; }
+	public DynamicObjectManager getDynamicObjectManager() { return f_dynamicObjectManager; }
 	
 	//Methods
 	
@@ -314,6 +325,7 @@ public class BombersGame extends SFSExtension {
 		//Initialize map and start locations, and send it
 		
 		f_gameField = f_dispatcher.getMapManager().getRandomMap(getParentRoom(), f_locationId, f_gameProfiles.size());
+		f_gameField.setGame(this);
 		//trace("f_gameField = " + f_gameField.toString());
 		f_dynamicObjectManager.setWallBlocksCount(f_gameField.getWallBlocksCount());
 		//TODO: Increase room's maximum capacity if necessary
@@ -367,6 +379,7 @@ public class BombersGame extends SFSExtension {
 		
 		initializeDeathBlocks();
 		initializeMoveTracking();
+		intiializeBombActivationCycle();
 		
 		SFSObject params = new SFSObject();
 		send("game.lobby.gameStarted", params, getParentRoom().getUserList());		
@@ -421,57 +434,11 @@ public class BombersGame extends SFSExtension {
 		f_dispatcher.addDelayedGameEvent(event, f_scheduleIndex, delay);
 	}
 	
+	public void addBombExplosionEvent(WeaponActivateEvent event) {
+		f_bombExplosionQueue.add(event);
+	}
+	
 	//Game process methods
-	
-//	private void processMoveTracking(BombersGame game, DynamicGameMap map) {
-//		long currentTime = System.currentTimeMillis();
-//		
-//		SFSObject move = new SFSObject();
-//		SFSArray coordsX = new SFSArray();
-//		SFSArray coordsY = new SFSArray();
-//		SFSArray inputDirections = new SFSArray();
-//		for (PlayerGameProfile gp : f_gameProfiles.values()) {
-//			long ticks = currentTime - gp.getLastMoveCalculation();
-//			map.calculatePosition(gp, ticks);
-//			gp.setLastMoveCalculation(currentTime);
-//			
-//			coordsX.addDouble(gp.getX());
-//			coordsY.addDouble(gp.getY());
-//			inputDirections.addInt(gp.getInputDirection());
-//		}
-//		move.putSFSArray("CX", coordsX);
-//		move.putSFSArray("CY", coordsY);
-//		move.putSFSArray("ID", inputDirections);
-//		game.send("M", move, game.getParentRoom().getPlayersList());		
-//	}
-	
-//	private void processMoveTrackingAndSetDirection(BombersGame game, DynamicGameMap map, User user, int inputDirection) {
-//		long currentTime = System.currentTimeMillis();
-//		
-//		SFSObject move = new SFSObject();
-//		SFSArray coordsX = new SFSArray();
-//		SFSArray coordsY = new SFSArray();
-//		SFSArray inputDirections = new SFSArray();
-//		for (PlayerGameProfile gp : f_gameProfiles.values()) {
-//			if (gp.getUser() == user) {
-//				long ticks = currentTime - gp.getLastMoveCalculation();
-//				map.calculatePosition(gp, ticks);
-//				gp.setLastMoveCalculation(currentTime);
-//				coordsX.addDouble(gp.getXi() / 1000.0);
-//				coordsY.addDouble(gp.getYi() / 1000.0);
-//				gp.setInputDirection(inputDirection);
-//				inputDirections.addInt(gp.getInputDirection());
-//			} else {
-//				coordsX.addDouble(-1.0);
-//				coordsY.addDouble(-1.0);
-//				inputDirections.addInt(-1);				
-//			}
-//		}
-//		move.putSFSArray("CX", coordsX);
-//		move.putSFSArray("CY", coordsY);
-//		move.putSFSArray("ID", inputDirections);
-//		game.send("M", move, game.getParentRoom().getPlayersList());		
-//	}
 	
 	private void initializeMoveTracking() {
 		trace(ExtensionLogLevel.WARN, "Starting move tracking...");
@@ -513,6 +480,27 @@ public class BombersGame extends SFSExtension {
 				addDelayedGameEvent(this, C_MoveQuantumTicks);
 			}
 		});
+	}
+	
+	private void intiializeBombActivationCycle() {
+		addDelayedGameEvent(new GameEvent(this) {
+			@Override
+			protected void ApplyOnGame(BombersGame game, DynamicGameMap map) {
+				if (!f_bombExplosionQueue.isEmpty()) {
+					ArrayList<WeaponActivateEvent> events = new ArrayList<WeaponActivateEvent>();
+					f_bombExplosionQueue.drainTo(events);
+					SFSObject params = new SFSObject();
+					SFSArray dynamicObjects = new SFSArray();
+					for (WeaponActivateEvent event : events) {
+						event.Apply();
+						dynamicObjects.addSFSObject(event.getSendResult());
+					}
+					params.putSFSArray("DOs", dynamicObjects);
+					send("game.MultiDOAct", params, getParentRoom().getUserList());
+				}
+				addDelayedGameEvent(this, C_BombExplosionInterval);
+			}
+		}, C_BombExplosionInterval);
 	}
 	
 	private void initializeDeathBlocks() {
@@ -570,7 +558,7 @@ public class BombersGame extends SFSExtension {
 				}	
 				game.addDelayedGameEvent(this, 1250);
 			}
-		}, 10 * 2*45*1000);
+		}, C_DeathWallAppearsSince);
 	}
 	
 	private void killPlayer(PlayerGameProfile player) {
@@ -592,26 +580,21 @@ public class BombersGame extends SFSExtension {
 	}
 	
 	public void damagePlayer(final User user, final int damage, final int effect, final boolean isDead) {
-		final PlayerGameProfile player = getGameProfile(user);
-		addGameEvent(new GameEvent(this) {
-			@Override
-			protected void ApplyOnGame(BombersGame game, DynamicGameMap map) {
-				if (player != null && player.isAlive()) {
-					player.addHealth(-damage);
-					if (isDead || player.getHealth() <= 0) {
-						killPlayer(player);
-					} else {
-						SFSObject params = new SFSObject();
-						params.putUtfString("UserId", user.getName());
-						params.putInt("HealthLeft", player.getHealth());
-						send("game.playerDamaged", params, getParentRoom().getPlayersList());
-					}
-				} 
+		PlayerGameProfile player = getGameProfile(user);
+		if (player != null && player.isAlive()) {
+			player.addHealth(-damage);
+			if (isDead || player.getHealth() <= 0) {
+				killPlayer(player);
+			} else {
+				SFSObject params = new SFSObject();
+				params.putUtfString("UserId", user.getName());
+				params.putInt("HealthLeft", player.getHealth());
+				send("game.playerDamaged", params, getParentRoom().getPlayersList());
 			}
-		});
+		} 
 	}
 	
-	public void processInputDirectionChanged(final User user, final int inputDirection) {
+	public void processInputDirectionChanged(final User user, final int inputDirection, final int x, final int y) {
 		addGameEvent(new GameEvent(this) {
 			@Override
 			protected void ApplyOnGame(BombersGame game, DynamicGameMap map) {
@@ -623,8 +606,15 @@ public class BombersGame extends SFSExtension {
 				SFSArray inputDirections = new SFSArray();
 				for (PlayerGameProfile gp : f_gameProfiles.values()) {
 					if (gp.getUser() == user) {
-						long ticks = currentTime - gp.getLastMoveCalculation();
-						map.calculatePosition(gp, ticks);
+						//long ticks = currentTime - gp.getLastMoveCalculation();
+						
+						//TODO: Check coordinates for canGo
+						//TODO: Check lags and send MM if necessary
+						//map.calculatePosition(gp, ticks);
+						gp.setXi(x);
+						gp.setYi(y);
+						map.checkPlayerPosition(gp);
+
 						gp.setLastMoveCalculation(currentTime);
 						coordsX.addInt(gp.getXi());
 						coordsY.addInt(gp.getYi());
@@ -646,6 +636,7 @@ public class BombersGame extends SFSExtension {
 	
 	//Weapons & dynamic objects system
 	
+	@Deprecated
 	public void destroyWallAt(final int x, final int y) {
 		if (f_gameField.getObjectTypeAt(x, y) == DynamicGameMap.ObjectType.OUT || 
 			f_gameField.getObjectTypeAt(x, y) == DynamicGameMap.ObjectType.EMPTY ||
@@ -677,10 +668,14 @@ public class BombersGame extends SFSExtension {
 		}, 50);
 	}
 	
-	public void activateWeapon(User user, int weaponId, int x, int y) {
-		f_weaponsManager.activateWeapon(user, weaponId, x, y);
+	public void activateWeapon(User user, int weaponId) {
+		PlayerGameProfile profile = getGameProfile(user);
+		int xc = (profile.getXi() + 20000) / 40000;
+		int yc = (profile.getYi() + 20000) / 40000;
+		f_weaponsManager.activateWeapon(user, weaponId, xc, yc);
 	}
 	
+	@Deprecated
 	public void activateDynamicObject(User user, int x, int y) {
 		f_dynamicObjectManager.activateDynamicObject(user, x, y);
 	}

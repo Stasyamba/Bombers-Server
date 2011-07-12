@@ -35,4 +35,6 @@ public abstract class GameEvent {
 	
 	protected abstract void ApplyOnGame(BombersGame game, DynamicGameMap map);
 
+	protected BombersGame getGame() { return f_game; }
+	
 }

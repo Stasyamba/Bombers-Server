@@ -12,6 +12,8 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
 import com.vensella.bombers.dispatcher.MapManager;
+import com.vensella.bombers.game.BombersGame;
+import com.vensella.bombers.game.DamageObject;
 import com.vensella.bombers.game.DynamicObject;
 import com.vensella.bombers.game.PlayerGameProfile;
 
@@ -40,6 +42,9 @@ public class DynamicGameMap {
 	
 	public static final int C_BlockSizeInt = 40000;
 	
+	public static final int C_BlockOffsetToBeeingDamaged = 500;
+	public static final int C_BlockOffsetToActivateDynamicObject = 50;
+	
 	public static final double C_MinOffset = -20.0;
 	public static final double C_MaxOffset = 19.0;
 	
@@ -56,6 +61,8 @@ public class DynamicGameMap {
 	private int[] f_spawnY;
 	
 	private ObjectType[][] f_map;
+	
+	private BombersGame f_game;
 	
 	//Constructors
 	
@@ -127,6 +134,7 @@ public class DynamicGameMap {
 		}
 		
 		f_dynamicObjects = new DynamicObject[f_maxX * f_maxY];
+		f_damageObjects = new DamageObject[f_maxX * f_maxY];
 	}
 	
 	public DynamicGameMap(DynamicGameMap prototype) {
@@ -150,6 +158,7 @@ public class DynamicGameMap {
 				f_map[x][y] = prototype.f_map[x][y];
 		
 		f_dynamicObjects = new DynamicObject[f_maxX * f_maxY];
+		f_damageObjects = new DamageObject[f_maxX * f_maxY];
 	}
 	
 	//Getters and setters
@@ -217,6 +226,9 @@ public class DynamicGameMap {
 		return count;
 	}
 	
+	public BombersGame getGame() { return f_game; }
+	public void setGame(BombersGame game) { f_game = game; }
+	
 	//Dynamic object system
 	
 	private DynamicObject[] f_dynamicObjects;
@@ -233,396 +245,33 @@ public class DynamicGameMap {
 		f_dynamicObjects[getWidth() * y + x] = null;
 	}
 	
-	//Move calculation
+	//Damage object system
 	
-//	public void calculatePosition(PlayerGameProfile profile, long ticks) {
-//		if (profile.getInputDirection() == DirectionStop)
-//			return;
-//		
-//		double distance = ticks * profile.getSpeed() / 1000.0;
-//		
-//		if (distance >= C_BlockSize) {
-//			//TODO: Log bad situation
-//		}
-//		//if (!canGo(profile.getX(), profile.getY())) return;
-//			
-//		
-//		int inputDirection = profile.getInputDirection();
-//		
-//		
-//		boolean isAlignedToGoVertical =  Math.abs(profile.getX() % C_BlockSize) == 0.0;
-//		boolean isAlignedToGoHorizontal =  Math.abs(profile.getY() % C_BlockSize) == 0.0;
-//		
-//		if (inputDirection == DirectionDown || inputDirection == DirectionUp ) {
-//			//We are already aligned due to the cell? So go strictly vertically if possible
-//			if (isAlignedToGoVertical) {
-//				if (inputDirection == DirectionDown) {
-//					//Go down
-//					double delta = profile.getY() % C_BlockSize;
-//					if (delta > 0.0) {
-//						double needToGoToCell = C_BlockSize - delta;
-//						double go = Math.min(distance, needToGoToCell);
-//						
-//						distance -= go;
-//						profile.addY(go);
-//					} 
-//					//Can go to the next block?
-//					if (canGo(profile.getX() + 1.0, profile.getY() + C_BlockSize + 1.0)) {
-//						//Going all remaining distance - we assumed that distance is strictly less then block size
-//						profile.addY(distance);
-//					}
-//					profile.setViewDirection(DirectionDown);
-//				} else {
-//					//Go up
-//					double delta = profile.getY() % C_BlockSize;
-//					if (delta > 0.0) {
-//						double needToGoToCell = delta;
-//						double go = Math.min(distance, needToGoToCell);
-//						
-//						distance -= go;
-//						profile.addY(-go);
-//					} 
-//					//Can go to the next block?
-//					if (canGo(profile.getX() + 1.0, profile.getY() - 1.0)) {
-//						//Going all remaining distance - we assumed that distance is strictly less then block size
-//						profile.addY(-distance);
-//					}
-//					profile.setViewDirection(DirectionUp);
-//				}
-//			}
-//			else {
-//				//Need to go around in some cases (if possible)
-//				if (inputDirection == DirectionDown) {
-//					//
-//					//Go DOWN walking AROUND blocks
-//					//
-//					double centerX = profile.getX() + C_BlockSize / 2.0;
-//					double centerXDelta = centerX % C_BlockSize;
-//					
-//					if (centerXDelta < C_BlockSize / 2.0) {
-//						if (canGo(centerX, profile.getY() + C_BlockSize + 1.0)) {
-//							//Go right and down
-//							//Go right
-//							double go = Math.min(distance, C_BlockSize / 2.0 - centerXDelta);
-//							profile.addX(go);
-//							distance -= go;
-//							profile.setViewDirection(DirectionRight);
-//							//Go down
-//							if (distance > 0) {
-//								profile.addY(distance);
-//								profile.setViewDirection(DirectionDown);
-//							}
-//						} else if (canGo(centerX - C_BlockSize, profile.getY() + C_BlockSize + 1.0)) {
-//							//Go left and down
-//							//Go left
-//							double go = Math.min(distance, centerXDelta + C_BlockSize / 2.0);
-//							profile.addX(-go);
-//							distance -= go;
-//							profile.setViewDirection(DirectionLeft);
-//							//Go down
-//							if (distance > 0) {
-//								profile.addY(distance);
-//								profile.setViewDirection(DirectionDown);
-//							}
-//						}
-//						else {
-//							//Do nothing - just set view direction to down
-//							profile.setViewDirection(DirectionDown);
-//						}
-//					}
-//					else {
-//						if (canGo(centerX, profile.getY() + C_BlockSize + 1.0)) {
-//							//Go left and down
-//							//Go left
-//							double go = Math.min(distance, centerXDelta - C_BlockSize / 2.0);
-//							profile.addX(-go);
-//							distance -= go;
-//							profile.setViewDirection(DirectionLeft);
-//							//Go down
-//							if (distance > 0) {
-//								profile.addY(distance);
-//								profile.setViewDirection(DirectionDown);
-//							}
-//						} else if (canGo(centerX + C_BlockSize, profile.getY() + C_BlockSize + 1.0)) {
-//							//Go right and down
-//							//Go right
-//							double go = Math.min(distance, C_BlockSize - centerXDelta + C_BlockSize / 2.0);
-//							profile.addX(go);
-//							distance -= go;
-//							profile.setViewDirection(DirectionRight);
-//							//Go down
-//							if (distance > 0) {
-//								profile.addY(distance);
-//								profile.setViewDirection(DirectionDown);
-//							}
-//						}
-//						else {
-//							//Do nothing - just set view direction to down
-//							profile.setViewDirection(DirectionDown);
-//						}						
-//					}
-//				} else {
-//					//
-//					//Go UP walking AROUND blocks
-//					//
-//					double centerX = profile.getX() + C_BlockSize / 2.0;
-//					double centerXDelta = centerX % C_BlockSize;
-//					
-//					if (centerXDelta < C_BlockSize / 2.0) {
-//						if (canGo(centerX, profile.getY() - 1.0)) {
-//							//Go right and up
-//							//Go right
-//							double go = Math.min(distance, C_BlockSize / 2.0 - centerXDelta);
-//							profile.addX(go);
-//							distance -= go;
-//							profile.setViewDirection(DirectionRight);
-//							//Go up
-//							if (distance > 0) {
-//								profile.addY(-distance);
-//								profile.setViewDirection(DirectionUp);
-//							}
-//						} else if (canGo(centerX - C_BlockSize, profile.getY() - 1.0)) {
-//							//Go left and up
-//							//Go left
-//							double go = Math.min(distance, centerXDelta + C_BlockSize / 2.0);
-//							profile.addX(-go);
-//							distance -= go;
-//							profile.setViewDirection(DirectionLeft);
-//							//Go up
-//							if (distance > 0) {
-//								profile.addY(-distance);
-//								profile.setViewDirection(DirectionUp);
-//							}
-//						}
-//						else {
-//							//Do nothing - just set view direction to down
-//							profile.setViewDirection(DirectionUp);
-//						}
-//					}
-//					else {
-//						if (canGo(centerX, profile.getY() - 1.0)) {
-//							//Go left and up
-//							//Go left
-//							double go = Math.min(distance, centerXDelta - C_BlockSize / 2.0);
-//							profile.addX(-go);
-//							distance -= go;
-//							profile.setViewDirection(DirectionLeft);
-//							//Go up
-//							if (distance > 0.0) {
-//								profile.addY(-distance);
-//								profile.setViewDirection(DirectionUp);
-//							}
-//						} else if (canGo(centerX + C_BlockSize, profile.getY() - 1.0)) {
-//							//Go right and up
-//							//Go right
-//							double go = Math.min(distance, C_BlockSize - centerXDelta + C_BlockSize / 2.0);
-//							profile.addX(go);
-//							distance -= go;
-//							profile.setViewDirection(DirectionRight);
-//							//Go up
-//							if (distance > 0.0) {
-//								profile.addY(-distance);
-//								profile.setViewDirection(DirectionUp);
-//							}
-//						}
-//						else {
-//							//Do nothing - just set view direction to down
-//							profile.setViewDirection(DirectionUp);
-//						}						
-//					}
-//				}			
-//			}
-//		}
-//		else if (inputDirection == DirectionLeft || inputDirection == DirectionRight) {
-//			//We are already aligned due to the cell? So go strictly horizontally if possible
-//			if (isAlignedToGoHorizontal) {
-//				if (inputDirection == DirectionRight) {
-//					//Go right
-//					double delta = profile.getX() % C_BlockSize;
-//					if (delta > 0) {
-//						double needToGoToCell = C_BlockSize - delta;
-//						double go = Math.min(distance, needToGoToCell);
-//						
-//						distance -= go;
-//						profile.addX(go);
-//					} 
-//					//Can go to the next block?
-//					if (canGo(profile.getX() + C_BlockSize + 1.0, profile.getY() + 1.0)) {
-//						//Going all remaining distance - we assumed that distance is strictly less then block size
-//						profile.addX(distance);
-//					}
-//					profile.setViewDirection(DirectionRight);
-//				} else {
-//					//Go left
-//					double delta = profile.getX() % C_BlockSize;
-//					if (delta > 0) {
-//						double needToGoToCell = delta;
-//						double go = Math.min(distance, needToGoToCell);
-//						
-//						distance -= go;
-//						profile.addX(-go);
-//					} 
-//					//Can go to the next block?
-//					if (canGo(profile.getX() - 1.0, profile.getY() + 1.0)) {
-//						//Going all remaining distance - we assumed that distance is strictly less then block size
-//						profile.addX(-distance);
-//					}
-//					profile.setViewDirection(DirectionLeft);
-//				}				
-//			} else {
-//				//Need to go around in some cases (if possible)
-//				if (inputDirection == DirectionRight) {
-//					//
-//					//Go RIGHT walking AROUND blocks
-//					//
-//					double centerY = profile.getY() + C_BlockSize / 2.0;
-//					double centerYDelta = centerY % C_BlockSize;
-//					
-//					if (centerYDelta < C_BlockSize / 2.0) {
-//						if (canGo(profile.getX() + C_BlockSize + 1.0, centerY)) {
-//							//Go down and right
-//							//Go down
-//							double go = Math.min(distance, C_BlockSize / 2.0 - centerYDelta);
-//							profile.addY(go);
-//							distance -= go;
-//							profile.setViewDirection(DirectionDown);
-//							//Go right
-//							if (distance > 0) {
-//								profile.addX(distance);
-//								profile.setViewDirection(DirectionRight);
-//							}
-//						} else if (canGo(profile.getX() + C_BlockSize + 1.0, centerY - C_BlockSize)) {
-//							//Go up and right
-//							//Go up
-//							double go = Math.min(distance, centerYDelta + C_BlockSize / 2.0);
-//							profile.addY(-go);
-//							distance -= go;
-//							profile.setViewDirection(DirectionUp);
-//							//Go right
-//							if (distance > 0) {
-//								profile.addX(distance);
-//								profile.setViewDirection(DirectionRight);
-//							}
-//						}
-//						else {
-//							//Do nothing - just set view direction to RIGHT
-//							profile.setViewDirection(DirectionRight);
-//						}
-//					}
-//					else {
-//						if (canGo(profile.getX() + C_BlockSize + 1.0, centerY)) {
-//							//Go up and right
-//							//Go up
-//							double go = Math.min(distance, centerYDelta - C_BlockSize / 2.0);
-//							profile.addY(-go);
-//							distance -= go;
-//							profile.setViewDirection(DirectionUp);
-//							//Go right
-//							if (distance > 0.0) {
-//								profile.addX(distance);
-//								profile.setViewDirection(DirectionRight);
-//							}
-//						} else if (canGo(profile.getX() + C_BlockSize + 1.0, centerY + C_BlockSize)) {
-//							//Go down and right
-//							//Go down
-//							double go = Math.min(distance, C_BlockSize - centerYDelta + C_BlockSize / 2.0);
-//							profile.addY(go);
-//							distance -= go;
-//							profile.setViewDirection(DirectionDown);
-//							//Go right
-//							if (distance > 0.0) {
-//								profile.addX(distance);
-//								profile.setViewDirection(DirectionRight);
-//							}
-//						}
-//						else {
-//							//Do nothing - just set view direction to RIGHT
-//							profile.setViewDirection(DirectionRight);
-//						}						
-//					}
-//				} else {
-//					//
-//					//Go LEFT walking AROUND blocks
-//					//
-//					double centerY = profile.getY() + C_BlockSize / 2.0;
-//					double centerYDelta = centerY % C_BlockSize;
-//					
-//					if (centerYDelta < C_BlockSize / 2.0) {
-//						if (canGo(profile.getX() -  1.0, centerY)) {
-//							//Go down and left
-//							//Go down
-//							double go = Math.min(distance, C_BlockSize / 2.0 - centerYDelta);
-//							profile.addY(go);
-//							distance -= go;
-//							profile.setViewDirection(DirectionDown);
-//							//Go left
-//							if (distance > 0) {
-//								profile.addX(-distance);
-//								profile.setViewDirection(DirectionLeft);
-//							}
-//						} else if (canGo(profile.getX() - 1.0, centerY - C_BlockSize)) {
-//							//Go up and left
-//							//Go up
-//							double go = Math.min(distance, centerYDelta + C_BlockSize / 2.0);
-//							profile.addY(-go);
-//							distance -= go;
-//							profile.setViewDirection(DirectionUp);
-//							//Go right
-//							if (distance > 0) {
-//								profile.addX(-distance);
-//								profile.setViewDirection(DirectionLeft);
-//							}
-//						}
-//						else {
-//							//Do nothing - just set view direction to RIGHT
-//							profile.setViewDirection(DirectionLeft);
-//						}
-//					}
-//					else {
-//						if (canGo(profile.getX() - 1.0, centerY)) {
-//							//Go up and left
-//							//Go up
-//							double go = Math.min(distance, centerYDelta - C_BlockSize / 2.0);
-//							profile.addY(-go);
-//							distance -= go;
-//							profile.setViewDirection(DirectionUp);
-//							//Go left
-//							if (distance > 0) {
-//								profile.addX(-distance);
-//								profile.setViewDirection(DirectionLeft);
-//							}
-//						} else if (canGo(profile.getX() - 1.0, centerY + C_BlockSize)) {
-//							//Go down and left
-//							//Go down
-//							double go = Math.min(distance, C_BlockSize - centerYDelta + C_BlockSize / 2.0);
-//							profile.addY(go);
-//							distance -= go;
-//							profile.setViewDirection(DirectionDown);
-//							//Go left
-//							if (distance > 0) {
-//								profile.addX(-distance);
-//								profile.setViewDirection(DirectionLeft);
-//							}
-//						}
-//						else {
-//							//Do nothing - just set view direction to RIGHT
-//							profile.setViewDirection(DirectionLeft);
-//						}						
-//					}
-//				}
-//			}
-//		}
-//		//Else - just stand on place =)
-//		
-//	}
+	private DamageObject[] f_damageObjects;
+	
+	public DamageObject getDamageObject(int x, int y) {
+		return f_damageObjects[getWidth() * y + x];
+	}
+	
+	public void setDamageObject(int x, int y, DamageObject obj) {
+		f_damageObjects[getWidth() * y + x] = obj;
+	}
+	
+	public void removeDamageObject(int x, int y) {
+		f_damageObjects[getWidth() * y + x] = null;
+	}
+	
+	//Move calculation
 	
 	//Move calculation - new variant
 	
-	public void calculatePosition(PlayerGameProfile profile, long ticks) {
-		if (profile.getInputDirection() == DirectionStop)
+	public void calculatePosition(PlayerGameProfile profile, long millsTicks) {
+		if (profile.getInputDirection() == DirectionStop) {
+			checkPlayerPosition(profile);
 			return;
+		}
 		
-		int distance = (int)(ticks * profile.getSpeed());
+		int distance = (int)(millsTicks * profile.getSpeed());
 		
 		if (distance >= C_BlockSizeInt) {
 			//TODO: Log bad situation
@@ -996,11 +645,69 @@ public class DynamicGameMap {
 		}
 		//Else - just stand on place =)
 		
+		//Activate bonuses, or damage player 
+		checkPlayerPosition(profile);
 	}
 	  
+	//Checks player position and activates DynamicObjects or/and damages player
+	public void checkPlayerPosition(PlayerGameProfile profile) {
+		int xc = profile.getXi() / C_BlockSizeInt;
+		int yc = profile.getYi() / C_BlockSizeInt;
+		
+		int xOffs = profile.getXi() % C_BlockSizeInt;
+		int yOffs = profile.getYi() % C_BlockSizeInt;
+		
+		if (xOffs != 0) {
+			if (xOffs < C_BlockSizeInt - C_BlockOffsetToBeeingDamaged) {
+				tryDamagePlayerAt(profile, xc, yc);
+			}
+			if (xOffs < C_BlockSizeInt - C_BlockOffsetToActivateDynamicObject) {
+				tryActivateDynamicObjectAt(profile, xc, yc);
+			}
+			if (xOffs > C_BlockOffsetToBeeingDamaged) {
+				tryDamagePlayerAt(profile, xc + 1, yc);
+			}
+			if (xOffs > C_BlockOffsetToActivateDynamicObject) {
+				tryActivateDynamicObjectAt(profile, xc + 1, yc);
+			}
+		} else {
+			if (yOffs < C_BlockSizeInt - C_BlockOffsetToBeeingDamaged) {
+				tryDamagePlayerAt(profile, xc, yc);
+			}
+			if (yOffs < C_BlockSizeInt - C_BlockOffsetToActivateDynamicObject) {
+				tryActivateDynamicObjectAt(profile, xc, yc);
+			}
+			if (yOffs > C_BlockOffsetToBeeingDamaged) {
+				tryDamagePlayerAt(profile, xc, yc + 1);
+			}
+			if (yOffs > C_BlockOffsetToActivateDynamicObject) {
+				tryActivateDynamicObjectAt(profile, xc, yc + 1);
+			}			
+		}	
+	}
 	
+	protected void tryDamagePlayerAt(PlayerGameProfile profile, int x, int y) {
+		long time = System.currentTimeMillis();
+		DamageObject dam = getDamageObject(x, y);
+//		if (dam != null) {
+//			f_game.trace("Entered damage object at " +x + ", " + y + ", time = " + time + ", damage object set time = " +
+//					dam.getSettedTime());
+//		}
+		
+		if (dam != null && 
+			profile.getDamageTime() + PlayerGameProfile.C_ImmortalTime < time &&
+			dam.getSettedTime() + dam.getLifetime() > time) 
+		{
+			profile.setDamageTime(time);
+			f_game.addGameEvent(dam.getDamageEvent(f_game, profile));
+		}			
+	}
 	
-	
-	
-	
+	protected void tryActivateDynamicObjectAt(PlayerGameProfile profile, int x, int y) {
+		DynamicObject dyn = getDynamicObject(x, y);
+		if (dyn != null && dyn.getCanBeActivatedByPlayer()) {
+			dyn.setOwner(profile.getUser());
+			f_game.addGameEvent(dyn.getActivateEvent());
+		}			
+	}
 }

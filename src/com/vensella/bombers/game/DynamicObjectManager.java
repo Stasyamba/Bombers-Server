@@ -184,7 +184,7 @@ public class DynamicObjectManager {
 						@Override
 						protected void ApplyOnGame(BombersGame game, DynamicGameMap map) {
 							PlayerGameProfile profile = game.getGameProfile(getOwner());
-							profile.addHealth(1);
+							profile.addHealth(PlayerGameProfile.C_HealthQuantum);
 							setActivated(true);
 							map.removeDynamicObject(x, y);
 							

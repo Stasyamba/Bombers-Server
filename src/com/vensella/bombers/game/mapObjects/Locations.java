@@ -10,6 +10,8 @@ public class Locations {
 
 	//Constants
 	
+	public static int C_TotalLocatios = 9;
+	
 	public static int C_GrassFields = 0;
 	public static int C_Castle = 1;
 	public static int C_Mine = 2;
