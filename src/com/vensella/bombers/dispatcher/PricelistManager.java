@@ -238,6 +238,71 @@ public class PricelistManager {
 		
 	}
 	
+	public class LevelDescription {
+		
+		//Constructor
+		
+		protected LevelDescription(Element levelElement) {
+			f_value = Integer.parseInt(levelElement.getAttribute("value"));
+			f_group = Integer.parseInt(levelElement.getAttribute("group"));
+			f_experience = Integer.parseInt(levelElement.getAttribute("exp"));
+			String[] earns = levelElement.getAttribute("earns").split(",");
+			f_earnsForPlaceOne = Integer.parseInt(earns[0]);
+			f_earnsForPlaceTwo = Integer.parseInt(earns[1]);
+			f_earnsForPlaceThree = Integer.parseInt(earns[2]);			
+			String[] benefits = levelElement.getAttribute("benefits").split(",");
+			f_benefitPlusOne = Integer.parseInt(benefits[0]);
+			f_benefitPlusTwo = Integer.parseInt(benefits[1]);
+			String[] fines = levelElement.getAttribute("fines").split(",");
+			f_fineMinusOne = Integer.parseInt(fines[0]);
+			f_fineMinusTwo = Integer.parseInt(fines[1]);
+		}
+		
+		//Fields
+		
+		public int f_value;
+		public int f_group;
+		
+		public int f_experience;
+		
+		public int f_earnsForPlaceOne;
+		public int f_earnsForPlaceTwo;
+		public int f_earnsForPlaceThree;
+		
+		public int f_benefitPlusOne;
+		public int f_benefitPlusTwo;
+		
+		public int f_fineMinusOne;
+		public int f_fineMinusTwo;
+		
+		//Methods
+		
+		public int getValue() { return f_value; }
+		public int getGroup() { return f_group; }
+		
+		public int getExperience() { return f_experience; }
+		
+		public int getEarnsForPlaceOne() { return f_earnsForPlaceOne; }
+		public int getEarnsForPlaceTwo() { return f_earnsForPlaceTwo; }
+		public int getEarnsForPlaceThree() { return f_earnsForPlaceThree; }
+		
+		public int getBenefitPlusOne() { return f_benefitPlusOne; }
+		public int getBenefitPlusTwo() { return f_benefitPlusTwo; }
+		
+		public int getFineMinusOne() { return f_fineMinusOne; }
+		public int getFineMinusTwo() { return f_fineMinusTwo; }
+		
+		public int getDeltaFor(LevelDescription another) {
+			int g = another.getGroup() - f_group;
+			if (g == 1) { return f_benefitPlusOne; }
+			else if (g >= 2) { return f_benefitPlusTwo; }
+			else if (g == -1) { return f_fineMinusOne; }
+			else if (g <= -2) { return f_fineMinusTwo; }
+			else { return 0; }
+		}
+		
+	}
+	
 	//Constants
 	
 	private static final String PricelistPath = "/usr/local/nginx/html/main/bombers/pricelist/pricelist.xml";
@@ -265,7 +330,7 @@ public class PricelistManager {
 	private Map<Integer, ItemCost> f_items;
 	private Map<Integer, ItemColection> f_collections;
 	
-	private ArrayList<Integer> f_levels;
+	private ArrayList<LevelDescription> f_levels;
 	
 	public Map<String, Mission> f_missions;
 	
@@ -285,7 +350,7 @@ public class PricelistManager {
 		
 		f_items = new HashMap<Integer, ItemCost>();
 		f_collections = new HashMap<Integer, PricelistManager.ItemColection>();
-		f_levels = new ArrayList<Integer>();
+		f_levels = new ArrayList<LevelDescription>();
 		
 		f_missions = new HashMap<String, PricelistManager.Mission>();
 		
@@ -346,9 +411,8 @@ public class PricelistManager {
 		nl = levelsElement.getElementsByTagName("level");
 		for (int i = 0; i < nl.getLength(); ++i) {
 			Element levelElement = (Element)nl.item(i);
-			f_levels.add(Integer.parseInt(levelElement.getAttribute("exp")));
+			f_levels.add(new LevelDescription(levelElement));
 		}		
-		PlayerProfile.LevelTable = f_levels;
 		//</levels>
 		
 		//<missions>
@@ -482,10 +546,39 @@ public class PricelistManager {
 	
 	//Methods
 	
-	public ArrayList<Integer> getLevelsInfo() {
-		return new ArrayList<Integer>(f_levels);
+	public LevelDescription getLevelFor(PlayerProfile profile) {
+		int currMax = -1;
+		LevelDescription r = null;
+		for (LevelDescription level : f_levels) {
+			if (level.getExperience() > currMax && profile.getExperience() >= level.getExperience()) {
+				r = level;
+				currMax = level.getExperience();
+			}
+		}
+		return r;
 	}
 	
+	public void adjustExperience(PlayerProfile placeOne, PlayerProfile placeTwo) {
+		LevelDescription levelOne = getLevelFor(placeOne);
+		LevelDescription levelTwo = getLevelFor(placeTwo);
+		int expOne = levelOne.getEarnsForPlaceOne() + levelOne.getDeltaFor(levelTwo);
+		placeOne.addExperience(expOne);
+		int expTwo = levelTwo.getEarnsForPlaceTwo() + levelTwo.getDeltaFor(levelOne);
+		placeTwo.addExperience(expTwo);
+	}
+	
+	public void adjustExperience(PlayerProfile placeOne, PlayerProfile placeTwo, PlayerProfile placeThree) {
+		LevelDescription levelOne = getLevelFor(placeOne);
+		LevelDescription levelTwo = getLevelFor(placeTwo);
+		LevelDescription levelThree = getLevelFor(placeThree);
+		int expOne = levelOne.getEarnsForPlaceOne() + levelOne.getDeltaFor(levelTwo) + levelOne.getDeltaFor(levelThree);
+		placeOne.addExperience(expOne);
+		int expTwo = levelTwo.getEarnsForPlaceTwo() + levelTwo.getDeltaFor(levelOne) + levelTwo.getDeltaFor(levelThree);
+		placeTwo.addExperience(expTwo);
+		int expThree = levelThree.getEarnsForPlaceThree() + levelThree.getDeltaFor(levelOne) + levelThree.getDeltaFor(levelTwo);
+		placeThree.addExperience(expThree);
+	}
+
 	public int getResourcesCost(int gold, int crystal, int adamantium, int antimatter) {
 		int cost = 0;
 		
@@ -556,7 +649,7 @@ public class PricelistManager {
 				profile.getCrystal() >= itemCost.getCrystal() &&
 				profile.getAdamantium() >= itemCost.getAdamantium() &&
 				profile.getAntimatter() >= itemCost.getAntimatter() &&
-				profile.getLevel() >= itemCost.getLevel()
+				getLevelFor(profile).getValue() >= itemCost.getLevel()
 			);
 	}
 	
@@ -690,8 +783,8 @@ public class PricelistManager {
 			//levels
 			
 			SFSArray levels = new SFSArray();
-			for (Integer exp : f_levels) {
-				levels.addInt(exp);
+			for (LevelDescription level : f_levels) {
+				levels.addInt(level.getExperience());
 			}
 			f_sfsObject.putSFSArray("Levels", levels);
 			

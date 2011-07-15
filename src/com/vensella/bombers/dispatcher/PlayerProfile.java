@@ -63,6 +63,7 @@ public class PlayerProfile {
 	
 	//Static fields
 	
+	@Deprecated
 	public static ArrayList<Integer> LevelTable;
 	
 	//Constructors
@@ -160,13 +161,18 @@ public class PlayerProfile {
 	private int f_votes;
 	
 	//private int f_energyPrize;
+	@Deprecated
 	private int f_goldPrize;
+	@Deprecated
 	private int f_crystalPrize;
+	@Deprecated
 	private int f_adamantiumPrize;
+	@Deprecated
 	private int f_antimatterPrize;
 	
 	private long f_lastLogin;
 	
+	@Deprecated
 	private int f_luckCount;
 	
 	private int f_trainingStatus;
@@ -190,8 +196,11 @@ public class PlayerProfile {
 	public long getLastLogin() { return f_lastLogin; }
 	public void setLastLogin(long lastLogin) { f_lastLogin = lastLogin; }
 	
+	@Deprecated
 	public int getLuckCount() { return f_luckCount; }
+	@Deprecated
 	public void setLuckCount(int luckCount) { f_luckCount = luckCount; }
+	@Deprecated
 	public void addLuckCount(int delta) { f_luckCount += delta; }
 	
 	public String getNick() { return f_nick; }
@@ -204,6 +213,7 @@ public class PlayerProfile {
 	public void setExperience(int experience) { f_experience = Math.min(experience, C_BetaMaximunExperience); }
 	public void addExperience(int delta) { f_experience = Math.min(f_experience + delta, C_BetaMaximunExperience); }
 	
+	@Deprecated
 	public int getLevel() {
 		if (LevelTable == null) return 1;
 		int level = 1;
@@ -247,20 +257,32 @@ public class PlayerProfile {
 	public void setAntimatter(int antimatter) { f_antimatter = antimatter; }
 	public void addAntimatter(int delta) { f_antimatter += delta; }
 	
+	@Deprecated
 	public int getGoldPrize() { return f_goldPrize; }
+	@Deprecated
 	public void setGoldPrize(int goldPrize) { f_goldPrize = goldPrize; }
+	@Deprecated
 	public void addGoldPrize(int delta) { f_goldPrize += delta; }
 	
+	@Deprecated
 	public int getCrystalPrize() { return f_crystalPrize; }
+	@Deprecated
 	public void setCrystalPrize(int crystalPrize) { f_crystalPrize = crystalPrize; }
+	@Deprecated
 	public void addCrystalPrize(int delta) { f_crystalPrize += delta; }
 	
+	@Deprecated
 	public int getAdamantiumPrize() { return f_adamantiumPrize; }
+	@Deprecated
 	public void setAdamantiumPrize(int adamantiumPrize) { f_adamantiumPrize = adamantiumPrize; }
+	@Deprecated
 	public void addAdamantiumPrize(int delta) { f_adamantiumPrize += delta; }
 	
+	@Deprecated
 	public int getAntimatterPrize() { return f_antimatterPrize; }
+	@Deprecated
 	public void setAntimatterPrize(int antimatterPrize) { f_antimatterPrize = antimatterPrize; }
+	@Deprecated
 	public void addAntimatterPrize(int delta) { f_antimatterPrize += delta; }
 	
 	public int getVotes() { return f_votes; }

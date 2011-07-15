@@ -11,10 +11,13 @@ import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
+import com.smartfoxserver.v2.entities.data.SFSArray;
+import com.smartfoxserver.v2.entities.data.SFSObject;
 import com.vensella.bombers.dispatcher.MapManager;
 import com.vensella.bombers.game.BombersGame;
 import com.vensella.bombers.game.DamageObject;
 import com.vensella.bombers.game.DynamicObject;
+import com.vensella.bombers.game.DynamicObjectManager;
 import com.vensella.bombers.game.PlayerGameProfile;
 
 public class DynamicGameMap {
@@ -32,6 +35,9 @@ public class DynamicGameMap {
 	
 	//Constants
 	
+	
+	
+	
 	public static final int DirectionStop = 0;
 	public static final int DirectionLeft = 1;
 	public static final int DirectionRight = 2;
@@ -42,11 +48,8 @@ public class DynamicGameMap {
 	
 	public static final int C_BlockSizeInt = 40000;
 	
-	public static final int C_BlockOffsetToBeeingDamaged = 500;
-	public static final int C_BlockOffsetToActivateDynamicObject = 50;
-	
-	public static final double C_MinOffset = -20.0;
-	public static final double C_MaxOffset = 19.0;
+	public static final int C_BlockOffsetToBeeingDamaged = 5000;
+	public static final int C_BlockOffsetToActivateDynamicObject = 200;
 	
 	//Fields
 	
@@ -59,6 +62,8 @@ public class DynamicGameMap {
 	private int f_maxPlayers;
 	private int[] f_spawnX;
 	private int[] f_spawnY;
+	
+	private int[] f_mapObjects;
 	
 	private ObjectType[][] f_map;
 	
@@ -135,9 +140,14 @@ public class DynamicGameMap {
 		
 		f_dynamicObjects = new DynamicObject[f_maxX * f_maxY];
 		f_damageObjects = new DamageObject[f_maxX * f_maxY];
+		
+		f_mapObjects = new int[f_maxX * f_maxY];
+		//TODO: Parse static map objects (bonuses, items, etc...)
 	}
 	
-	public DynamicGameMap(DynamicGameMap prototype) {
+	public DynamicGameMap(BombersGame game, DynamicGameMap prototype) {
+		f_game = game;
+		
 		f_mapId = prototype.f_mapId;
 		f_locationId = prototype.f_locationId;
 		
@@ -159,6 +169,68 @@ public class DynamicGameMap {
 		
 		f_dynamicObjects = new DynamicObject[f_maxX * f_maxY];
 		f_damageObjects = new DamageObject[f_maxX * f_maxY];
+		
+		f_mapObjects = new int[f_maxX * f_maxY];
+		for (int i = 0; i < f_maxX * f_maxY; ++i) {
+			f_mapObjects[i] = prototype.f_mapObjects[i];
+		}
+		
+		m_initRandomBonuses();
+	}
+	
+	//Initialization methods
+	
+	protected void m_initRandomBonuses() {
+		int countAddBomb = 8;
+		int countAddPower = 8;
+		int countAddSpeed = 8;
+		int countAddHealth = 4;
+		
+		int wallBlocks = getWallBlocksCount();
+		for (int x = 0; x < f_maxX; ++x) {
+			for (int y = 0; y < f_maxY; ++y) {
+				if (f_map[x][y] == ObjectType.WALL) {
+					int bonusesLeft = countAddBomb + countAddPower + countAddSpeed + countAddHealth;
+					double C = 1.0 * bonusesLeft / wallBlocks;
+					double p = Math.random();
+					wallBlocks--;
+					if (p < C) {
+						DynamicObject bonus = null;
+						int bonusType;
+						double r1 = Math.random() * countAddBomb;
+						double r2 = Math.random() * countAddPower;
+						double r3 = Math.random() * countAddSpeed;
+						double r4 = Math.random() * countAddHealth;
+						
+						if (r1 > r2 && r1 > r3 && r1 > r4) {
+							bonusType = DynamicObjectManager.BONUS_ADD_BOMB;
+							f_mapObjects[f_maxX * y + x] = bonusType;
+							bonus = f_game.getDynamicObjectManager().createDynamicObject(bonusType, x, y);
+							countAddBomb--;
+						}
+						else if (r2 > r1 && r2 > r3 && r2 > r4)	{
+							bonusType = DynamicObjectManager.BONUS_ADD_BOMB_POWER;
+							f_mapObjects[f_maxX * y + x] = bonusType;
+							bonus = f_game.getDynamicObjectManager().createDynamicObject(bonusType, x, y);
+							countAddPower--;
+						}
+						else if (r3 > r1 && r3 > r2 && r3 > r4)	{
+							bonusType = DynamicObjectManager.BONUS_ADD_SPEED;
+							f_mapObjects[f_maxX * y + x] = bonusType;
+							bonus = f_game.getDynamicObjectManager().createDynamicObject(bonusType, x, y);
+							countAddSpeed--;
+						}
+						else {
+							bonusType = DynamicObjectManager.BONUS_ADD_HEAL;
+							f_mapObjects[f_maxX * y + x] = bonusType;
+							bonus = f_game.getDynamicObjectManager().createDynamicObject(bonusType, x, y);
+							countAddHealth--;
+						}
+						setDynamicObject(x, y, bonus);
+					}
+				}
+			}
+		}
 	}
 	
 	//Getters and setters
@@ -227,7 +299,7 @@ public class DynamicGameMap {
 	}
 	
 	public BombersGame getGame() { return f_game; }
-	public void setGame(BombersGame game) { f_game = game; }
+	//public void setGame(BombersGame game) { f_game = game; }
 	
 	//Dynamic object system
 	
@@ -261,9 +333,23 @@ public class DynamicGameMap {
 		f_damageObjects[getWidth() * y + x] = null;
 	}
 	
-	//Move calculation
+	//Custom methods
 	
-	//Move calculation - new variant
+	public SFSArray getBonusesDescription() {
+		SFSArray bonuses = new SFSArray();
+		for (int i = 0; i < f_maxX * f_maxY; ++i) {
+			if (f_mapObjects[i] != DynamicObjectManager.INVALID_DYNAMIC_OBJECT) {
+				SFSObject bonus = new SFSObject();
+				bonus.putInt("X", i % f_maxX);
+				bonus.putInt("Y", i / f_maxX);
+				bonus.putInt("T", f_mapObjects[i]);
+				bonuses.addSFSObject(bonus);
+			}
+		}
+		return bonuses;
+	}
+	
+	//Move calculation
 	
 	public void calculatePosition(PlayerGameProfile profile, long millsTicks) {
 		if (profile.getInputDirection() == DirectionStop) {

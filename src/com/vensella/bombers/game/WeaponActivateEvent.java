@@ -39,11 +39,20 @@ public abstract class WeaponActivateEvent extends GameEvent {
 		SFSObject coords = new SFSObject();
 		coords.putInt("X", x);
 		coords.putInt("Y", y);
+		coords.putBool("isS", true);
 		f_destroyList.addSFSObject(coords);
 		
-		getGame().getGameMap().setDynamicObject(x, y, DynamicObject.C_DummyUnwalkable);
+		//getGame().getGameMap().setDynamicObject(x, y, DynamicObject.C_DummyUnwalkable);
 		f_xCoords.add(x);
 		f_yCoords.add(y);
+	}
+	
+	protected void beginDestroyingDynamicObject(int x, int y) {
+		SFSObject coords = new SFSObject();
+		coords.putInt("X", x);
+		coords.putInt("Y", y);
+		coords.putBool("isS", false);
+		f_destroyList.addSFSObject(coords);		
 	}
 	
 	protected SFSArray getDestroyList() { return f_destroyList; }
@@ -59,11 +68,13 @@ public abstract class WeaponActivateEvent extends GameEvent {
 				for (int i = 0; i < size; ++i) {
 					x = f_xCoords.get(i);
 					y = f_yCoords.get(i);	
-					map.removeDynamicObject(x, y);
-					if (map.getObjectTypeAt(x, y) == DynamicGameMap.ObjectType.WALL) {
-						game.getDynamicObjectManager().possiblyAddRandomBonus(x, y);
+//					map.removeDynamicObject(x, y);
+//					if (map.getObjectTypeAt(x, y) == DynamicGameMap.ObjectType.WALL) {
+//						game.getDynamicObjectManager().possiblyAddRandomBonus(x, y);
+//					}
+					if (map.getObjectTypeAt(x, y) != DynamicGameMap.ObjectType.DEATH_WALL) {
+						map.setObjectTypeAt(x, y, DynamicGameMap.ObjectType.EMPTY);
 					}
-					map.setObjectTypeAt(x, y, DynamicGameMap.ObjectType.EMPTY);
 				}
 			}
 		}, delay);

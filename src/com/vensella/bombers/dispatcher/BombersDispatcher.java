@@ -120,8 +120,9 @@ public class BombersDispatcher extends SFSExtension {
 						try {
 							GameEvent event = f_workingQueues[index].take();
 							if (event != null && 
-								event.getCurrentGameId() == event.getEventGameId() &&
-								event.getEventGameId() != GameEvent.INVALID_GAME_ID
+								((event.getCurrentGameId() == event.getEventGameId() &&
+								event.getEventGameId() != GameEvent.INVALID_GAME_ID) ||
+								event.getForceExecute())
 							) {
 								event.Apply();
 							} else {
@@ -242,7 +243,7 @@ public class BombersDispatcher extends SFSExtension {
 				profile.getCurrentBomberId(),
 				profile.getPhoto(),
 				profile.getLastLogin(),
-				profile.getLuckCount(),
+				0,//profile.getLuckCount(),
 				profile.getTrainingStatus(),
 				profile.getId()
 		});
@@ -291,36 +292,36 @@ public class BombersDispatcher extends SFSExtension {
 					conn.setAutoCommit(true);
 					
 					//Give prize to inviter if possible 
-					SFSObject prize = f_prizesCache.get(userId);
-					if (prize == null) {
-					    st = conn.prepareStatement(DBQueryManager.SqlSelectPrizeForInviting);
-						st.setString(1, userId);
-						SFSArray data = SFSArray.newFromResultSet(st.executeQuery());
-						if (data.size() > 0) {
-							prize = SFSObject.newFromJsonData(data.getSFSObject(0).getUtfString("Prize"));
-						}
-					}
-					if (prize != null ) {
-						int rc0 = prize.getInt("rc0");
-						int rc1 = prize.getInt("rc1");
-						int rc2 = prize.getInt("rc2");
-						int rc3 = prize.getInt("rc3");
-						String postCreatorId = prize.getUtfString("PostCreatorId");
-						PlayerProfile postCreatorProfile = f_profileCache.get(postCreatorId);
-						if (postCreatorProfile != null) {
-							postCreatorProfile.addGoldPrize(rc0);
-							postCreatorProfile.addCrystalPrize(rc1);
-							postCreatorProfile.addAdamantiumPrize(rc2);
-							postCreatorProfile.addAntimatterPrize(rc3);
-						}
-						getDbManager().ScheduleUpdateQuery(DBQueryManager.SqlAddPlayerResourcesPrize, new Object[] {
-							rc0,
-							rc1,
-							rc2,
-							rc3,
-							postCreatorId
-						});
-					}
+//					SFSObject prize = f_prizesCache.get(userId);
+//					if (prize == null) {
+//					    st = conn.prepareStatement(DBQueryManager.SqlSelectPrizeForInviting);
+//						st.setString(1, userId);
+//						SFSArray data = SFSArray.newFromResultSet(st.executeQuery());
+//						if (data.size() > 0) {
+//							prize = SFSObject.newFromJsonData(data.getSFSObject(0).getUtfString("Prize"));
+//						}
+//					}
+//					if (prize != null ) {
+//						int rc0 = prize.getInt("rc0");
+//						int rc1 = prize.getInt("rc1");
+//						int rc2 = prize.getInt("rc2");
+//						int rc3 = prize.getInt("rc3");
+//						String postCreatorId = prize.getUtfString("PostCreatorId");
+//						PlayerProfile postCreatorProfile = f_profileCache.get(postCreatorId);
+//						if (postCreatorProfile != null) {
+//							postCreatorProfile.addGoldPrize(rc0);
+//							postCreatorProfile.addCrystalPrize(rc1);
+//							postCreatorProfile.addAdamantiumPrize(rc2);
+//							postCreatorProfile.addAntimatterPrize(rc3);
+//						}
+//						getDbManager().ScheduleUpdateQuery(DBQueryManager.SqlAddPlayerResourcesPrize, new Object[] {
+//							rc0,
+//							rc1,
+//							rc2,
+//							rc3,
+//							postCreatorId
+//						});
+//					}
 					
 					profile = new PlayerProfile(userId);
 				} else {

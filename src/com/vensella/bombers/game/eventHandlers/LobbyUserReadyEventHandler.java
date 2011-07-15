@@ -15,7 +15,9 @@ public class LobbyUserReadyEventHandler extends BaseClientRequestHandler {
 		boolean isReady = params.getBool("game.lobby.userReady.fields.isReady");
 		BombersGame game = (BombersGame)getParentExtension();
 		
-		game.setUserReady(user, isReady);
+		if (isReady) {
+			game.setUserReady(user, isReady);
+		}
 	}
 
 }

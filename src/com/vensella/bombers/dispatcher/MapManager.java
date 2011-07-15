@@ -7,6 +7,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import com.smartfoxserver.v2.entities.Room;
 import com.smartfoxserver.v2.extensions.ExtensionLogLevel;
+import com.vensella.bombers.game.BombersGame;
 import com.vensella.bombers.game.mapObjects.DynamicGameMap;
 
 public class MapManager {
@@ -84,7 +85,10 @@ public class MapManager {
 	
 	//Methods
 	
-	public DynamicGameMap getRandomMap(Room room, int locationId, int players) {
+	public DynamicGameMap getRandomMap(BombersGame game, int players) {
+		Room room = game.getParentRoom();
+		int locationId = game.getLocationId();
+		
 		if (f_mapPool.containsKey(locationId) == false) {
 			return null;
 		}
@@ -101,7 +105,7 @@ public class MapManager {
 			f_mapRotation.put(room, ++index);
 		}
 		
-		return new DynamicGameMap(candidates.get(index % candidates.size()));
+		return new DynamicGameMap(game, candidates.get(index % candidates.size()));
 	}
 	
 	

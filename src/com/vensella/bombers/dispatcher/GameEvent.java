@@ -15,6 +15,8 @@ public abstract class GameEvent {
 	private BombersGame f_game;
 	private DynamicGameMap f_map;
 	
+	private boolean f_forceExecute;
+	
 	//Constructors
 	
 	public GameEvent(final BombersGame game) {
@@ -24,10 +26,17 @@ public abstract class GameEvent {
 		f_map = game.getGameMap();
 	}
 	
+	public GameEvent(final BombersGame game, boolean forceExecute) {
+		this(game);
+		f_forceExecute = forceExecute;
+	}
+	
 	//Methods
 	
 	public int getEventGameId() { return f_gameId; }
 	public int getCurrentGameId() { return f_game.getGameId(); }
+	
+	public boolean getForceExecute() { return f_forceExecute; }
 	
 	public void Apply() {
 		ApplyOnGame(f_game, f_map);

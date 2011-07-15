@@ -10,12 +10,11 @@ import com.vensella.bombers.game.WeaponActivateEvent;
 import com.vensella.bombers.game.WeaponsManager;
 import com.vensella.bombers.game.mapObjects.DynamicGameMap;
 
-//Normal bomb
-public class NormalBomb extends DynamicObject {
+public class NormalDynamite extends DynamicObject {
 
 	//Constructor
 	
-	public NormalBomb(BombersGame game, int x, int y, PlayerGameProfile owner) {
+	public NormalDynamite(BombersGame game, int x, int y, PlayerGameProfile owner) {
 		super(game, false, false);
 		this.x = x;
 		this.y = y;
@@ -28,12 +27,10 @@ public class NormalBomb extends DynamicObject {
 	private int y;
 	private PlayerGameProfile profile;
 	
-	//Methods
-
 	@Override
 	public GameEvent getActivateEvent() {
 		return new WeaponActivateEvent(getGame()) {
-			private static final int BASE_POWER = 1;
+			private static final int BASE_POWER = 5;
 			@Override
 			protected void ApplyOnGame(BombersGame game, DynamicGameMap map) {
 				setActivated(true);
@@ -43,7 +40,7 @@ public class NormalBomb extends DynamicObject {
 				DamageObject dam = new DamageObject(time) {
 					@Override
 					public long getLifetime() {
-						return 1000;
+						return 1500;
 					}
 					@Override
 					public GameEvent getDamageEvent(BombersGame game, final PlayerGameProfile player) {
@@ -52,7 +49,7 @@ public class NormalBomb extends DynamicObject {
 							protected void ApplyOnGame(BombersGame game, DynamicGameMap map) {
 								game.damagePlayer(
 										player.getUser(), 
-										PlayerGameProfile.C_HealthQuantum * 1, 
+										PlayerGameProfile.C_HealthQuantum * 3, 
 										0, 
 										false);
 							}
@@ -139,7 +136,7 @@ public class NormalBomb extends DynamicObject {
 				
 				SFSObject params = new SFSObject();
 				params.putUtfString("game.DOAct.f.userId", profile.getUser().getName());
-				params.putInt("game.DOAct.f.type", WeaponsManager.WEAPON_BOMB_NORMAL);
+				params.putInt("game.DOAct.f.type", WeaponsManager.WEAPON_BOMB_DYNAMITE);
 				params.putInt("game.DOAct.f.x", x);
 				params.putInt("game.DOAct.f.y", y);
 				params.putBool("game.DOAct.f.isRemoved", true);

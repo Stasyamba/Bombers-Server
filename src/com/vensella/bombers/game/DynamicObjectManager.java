@@ -5,24 +5,33 @@ import com.smartfoxserver.v2.entities.data.SFSObject;
 import com.vensella.bombers.dispatcher.GameEvent;
 import com.vensella.bombers.game.mapObjects.DynamicGameMap;
 
+import com.vensella.bombers.game.dynamicObjects.*;
+
 public class DynamicObjectManager {
 	
 	//Constants
 	
-	public final int BONUS_ADD_BOMB = 101;
-	public final int BONUS_ADD_BOMB_POWER = 102;
-	public final int BONUS_ADD_SPEED = 103;
-	public final int BONUS_ADD_HEAL = 104;
+	public static final int INVALID_DYNAMIC_OBJECT = 0;
+	
+	public static final int BONUS_ADD_BOMB = 101;
+	public static final int BONUS_ADD_BOMB_POWER = 102;
+	public static final int BONUS_ADD_SPEED = 103;
+	public static final int BONUS_ADD_HEAL = 104;
 	
 	//Fields
 	
 	private BombersGame f_game;
 	
+	@Deprecated
 	private int f_wallBlocks;
 	
+	@Deprecated
 	private int f_countAddBomb = 8;
+	@Deprecated
 	private int f_countAddPower = 8;
+	@Deprecated
 	private int f_countAddSpeed = 8;
+	@Deprecated
 	private int f_countAddHealth = 4;
 	
 	//Constructors
@@ -32,7 +41,25 @@ public class DynamicObjectManager {
 	}
 	
 	//Methods
+
+	public DynamicObject createDynamicObject(int type, int x, int y) {
+		switch(type) {
+			case BONUS_ADD_BOMB_POWER:
+				return new BombPowerBonus(f_game, x, y);
+			case BONUS_ADD_BOMB:
+				return new BombCountBonus(f_game, x, y);
+			case BONUS_ADD_HEAL:
+				return new HealthBonus(f_game, x, y);
+			case BONUS_ADD_SPEED:
+				return new SpeedBonus(f_game, x, y);
+			default:
+				return null;
+		}
+	}
 	
+	//Deprecated methods
+	
+	@Deprecated
 	public void setWallBlocksCount(int wallBlocks) {
 		f_countAddBomb = 8;
 		f_countAddPower = 8;
@@ -45,6 +72,7 @@ public class DynamicObjectManager {
 	/*
 	 * Warning - can be only called from event model context
 	 */
+	@Deprecated
 	public void possiblyAddRandomBonus(final int x, final int y) {
 		
 		int bonusesLeft = f_countAddBomb + f_countAddPower + f_countAddSpeed + f_countAddHealth;
@@ -62,22 +90,22 @@ public class DynamicObjectManager {
 			
 			if (r1 > r2 && r1 > r3 && r1 > r4) {
 				bonusType = BONUS_ADD_BOMB;
-				bonus = createDynamicObject(bonusType, x, y);
+				bonus = createDynamicObject_old(bonusType, x, y);
 				f_countAddBomb--;
 			}
 			else if (r2 > r1 && r2 > r3 && r2 > r4)	{
 				bonusType = BONUS_ADD_BOMB_POWER;
-				bonus = createDynamicObject(bonusType, x, y);
+				bonus = createDynamicObject_old(bonusType, x, y);
 				f_countAddPower--;
 			}
 			else if (r3 > r1 && r3 > r2 && r3 > r4)	{
 				bonusType = BONUS_ADD_SPEED;
-				bonus = createDynamicObject(bonusType, x, y);
+				bonus = createDynamicObject_old(bonusType, x, y);
 				f_countAddSpeed--;
 			}
 			else {
 				bonusType = BONUS_ADD_HEAL;
-				bonus = createDynamicObject(bonusType, x, y);
+				bonus = createDynamicObject_old(bonusType, x, y);
 				f_countAddHealth--;
 			}
 			f_game.getGameMap().setDynamicObject(x, y, bonus);
@@ -90,6 +118,7 @@ public class DynamicObjectManager {
 		}
 	}
 	
+	@Deprecated
 	public void activateDynamicObject(final User user, final int x, final int y) {
 		f_game.addGameEvent(new GameEvent(f_game) {
 			@Override
@@ -105,7 +134,8 @@ public class DynamicObjectManager {
 	
 	//Dynamic objects realization
 	
-	protected DynamicObject createDynamicObject(final int type, final int x, final int y) {
+	@Deprecated
+	protected DynamicObject createDynamicObject_old(final int type, final int x, final int y) {
 		switch (type) {
 		case BONUS_ADD_BOMB:
 			return new DynamicObject(f_game, true, true) {
