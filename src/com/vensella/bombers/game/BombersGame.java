@@ -17,6 +17,7 @@ import com.smartfoxserver.v2.extensions.SFSExtension;
 
 import com.vensella.bombers.dispatcher.*;
 
+import com.vensella.bombers.game.dynamicObjects.DeathObject;
 import com.vensella.bombers.game.eventHandlers.*;
 import com.vensella.bombers.game.mapObjects.DynamicGameMap;
 
@@ -30,7 +31,7 @@ public class BombersGame extends SFSExtension {
 	
 	public final int C_BombExplosionInterval = 800;
 	
-	public final int C_DeathWallAppearsSince = 5 * 90 * 1000;
+	public final int C_DeathWallAppearsSince = 90 * 1000;
 	
 	public final int C_GameCostInEnergy = 5;
 	
@@ -40,7 +41,6 @@ public class BombersGame extends SFSExtension {
 	private int f_scheduleIndex;
 	private int f_gameId = GameEvent.INVALID_GAME_ID;
 	private int f_gamesCount = 0;
-	//private volatile int f_currentPlayerRank = 100;
 	
 	private ArrayList<PlayerGameProfile> f_dieSequence;
 	private ArrayList<PlayerProfile> f_places;
@@ -56,8 +56,6 @@ public class BombersGame extends SFSExtension {
 	
 	private String[] f_slotsToIds;
 	
-	//private Object lock;
-	//private Lock CriticalSection;
 	private volatile int f_10secondToStart = 0;
 	private boolean f_isGameStarted = false;
 	
@@ -67,15 +65,12 @@ public class BombersGame extends SFSExtension {
 	
 	@Override
 	public void init() {
-		//CriticalSection = new ReentrantLock();
-		//lock = new Object();
 		f_bombExplosionQueue = new LinkedBlockingQueue<WeaponActivateEvent>();
 		
 		f_locationId = getParentRoom().getVariable("LocationId").getIntValue();
 		f_scheduleIndex = getParentRoom().getVariable("ScheduleIndex").getIntValue();
 		
 		f_dispatcher = (BombersDispatcher)getParentRoom().getZone().getExtension();
-		//f_dispatcherExtension = getParentRoom().getZone().getExtension();
 		
 		f_weaponsManager = new WeaponsManager(this);
 		f_dynamicObjectManager = new DynamicObjectManager(this);
@@ -93,15 +88,11 @@ public class BombersGame extends SFSExtension {
 		addEventHandler(SFSEventType.USER_LEAVE_ROOM, UserLeaveRoomEventHandler.class);
 		
 		//Initialize custom request handlers
-		
+	
 		addRequestHandler("game.lobby.userReady", LobbyUserReadyEventHandler.class);
 		
 		addRequestHandler("game.IDC", GameInputDirectionChangedEventHandler.class);
-		//addRequestHandler("game.damagePlayer", GameDamagePlayerEventHandler.class);
-		
 		addRequestHandler("game.AW", GameActivateWeaponEventHandler.class);
-		//addRequestHandler("game.actDO", GameActivateDynamicObject.class);
-		
 	}
 	
 	//Properties
@@ -111,8 +102,6 @@ public class BombersGame extends SFSExtension {
 	public boolean isGameStarted() { return f_isGameStarted; }
 	
 	public int getGameId() { return f_gameId; }
-	
-	//public int getMoveEventId() { return f
 	
 	public int alivePlayersCount() { 
 		int count = 0; 
@@ -142,16 +131,6 @@ public class BombersGame extends SFSExtension {
 		return Math.abs(sum / f_players.size() - experience);
 	}
 	
-	
-	private void savePlayerGameResultToDb(PlayerGameProfile profile) {
-		String sql = DBQueryManager.SqlUpdatePlayerItems;
-		f_dispatcher.getDbManager().ScheduleUpdateQuery(sql, new Object[]{ 
-				profile.getBaseProfile().getItemsData().toJson(),
-				profile.getBaseProfile().getId()
-		});
-	}
-	
-	
 	private int putToSlot(String userId) {
 		for (int i = 0; i < f_slotsToIds.length; ++i) {
 			if (f_slotsToIds[i] == null) {
@@ -161,6 +140,7 @@ public class BombersGame extends SFSExtension {
 		}	
 		return -1;
 	}
+	
 	
 	private void removeFromSlot(String userId) {
 		for (int i = 0; i < f_slotsToIds.length; ++i) {
@@ -220,29 +200,6 @@ public class BombersGame extends SFSExtension {
 				}
 			}
 		});
-		
-//		if (f_isGameStarted == false)
-//		{
-//			f_players.put(user, f_dispatcher.getUserProfile(user));
-//			synchronized (lock) {
-//				putToSlot(user.getName());
-//			}
-//			
-//			SFSObject params = new SFSObject();
-//			params.putInt("LocationId", f_locationId);
-//			send("game.lobby.location", params, user);
-//			
-//			SFSArray usersInfo = null;
-//			synchronized (lock) {
-//				usersInfo = getLobbyProfiles();
-//			}
-//			params = new SFSObject();
-//			params.putSFSArray("profiles", usersInfo);
-//			send("game.lobby.playersProfiles", params, getParentRoom().getUserList());
-//			setUserReady(user, false);
-//		} else {
-//			getApi().leaveRoom(user, getParentRoom());
-//		}
 	}
 	
 	public void processUserLeave(final User user) {
@@ -261,19 +218,6 @@ public class BombersGame extends SFSExtension {
 				setUserReadyInternal(user, false);
 			}
 		});
-		
-//		f_players.remove(user);
-//		synchronized (lock) {
-//			removeFromSlot(user.getName());
-//		}
-//		if (f_isGameStarted)
-//		{
-//			PlayerGameProfile player = getGameProfile(user);
-//			if (player != null && player.isAlive()) {
-//				killPlayer(player);
-//			}
-//		}
-//		setUserReady(user, false);
 	}
 	
 	//Methods for Lobby
@@ -291,15 +235,20 @@ public class BombersGame extends SFSExtension {
 		if (f_isGameStarted) {
 			return;
 		}
-		PlayerProfile profile = f_dispatcher.getUserProfile(user);
-		int energy = profile.getEnergy();
 		if (isReady) {
-			energy = profile.getEnergy();
+			PlayerProfile profile = f_dispatcher.getUserProfile(user);
+			int energy = profile.getEnergy();
 			if (energy < C_GameCostInEnergy) {
 				return;
 			} else {
 				energy -= C_GameCostInEnergy;
 				profile.setEnergy(energy);
+				
+				SFSObject params = new SFSObject();
+				params.putUtfString("Id", user.getName());
+				params.putBool("IsReady", isReady);
+				params.putInt("NewEnergy", energy);
+				send("game.lobby.readyChanged", params, getParentRoom().getPlayersList());
 			}
 		}
 		f_10secondToStart++;	
@@ -311,12 +260,6 @@ public class BombersGame extends SFSExtension {
 		} else {
 			f_gameProfiles.remove(user);
 		}
-		
-		SFSObject params = new SFSObject();
-		params.putUtfString("Id", user.getName());
-		params.putBool("IsReady", isReady);
-		params.putInt("NewEnergy", energy);
-		send("game.lobby.readyChanged", params, getParentRoom().getPlayersList());
 		
 		int beforeStart = 0;
 		if (f_gameProfiles.size() == f_players.size() &&  f_gameProfiles.size() >= 2) 
@@ -330,7 +273,6 @@ public class BombersGame extends SFSExtension {
 		
 		if (beforeStart > 0) {
 			//trace(beforeStart + " msecs to start situation");
-			//final int finalBeforeStart = beforeStart;
 			addDelayedGameEvent(new GameEvent(this, true) {
 				private int f_situationId = situationId;
 				@Override
@@ -343,23 +285,6 @@ public class BombersGame extends SFSExtension {
 					}	
 				}
 			}, beforeStart);
-			
-//			SmartFoxServer.getInstance().getTaskScheduler().schedule(new Runnable() {
-//				private int f_situationId = situationId;
-//				@Override
-//				public void run() {
-//							//CriticalSection.lock();
-//							synchronized (lock) {
-//								if (f_10secondToStart == f_situationId) {
-//									//trace("Starting game because of " + finalBeforeStart +" msecs passed");
-//									prepareToStartGame();
-//								} else {
-//									//trace(finalBeforeStart + " msecs passed, but situation has changed!");
-//								}	
-//							}
-//							//CriticalSection.unlock();
-//						}
-//			}, beforeStart, TimeUnit.MILLISECONDS);
 		}
 	}
 	
@@ -378,6 +303,7 @@ public class BombersGame extends SFSExtension {
 		//Initialize different data
 		
 		//TODO: Rewrite possible bad code
+		f_bombExplosionQueue.clear();
 		f_gameProfiles.clear();
 		for (User user : getParentRoom().getUserList()) {
 			PlayerGameProfile gameProfile = new PlayerGameProfile(user, f_players.get(user));
@@ -431,15 +357,7 @@ public class BombersGame extends SFSExtension {
 			protected void ApplyOnGame(BombersGame game, DynamicGameMap map) {
 				startGame();
 			}
-		}, 3000);
-		
-//		SmartFoxServer.getInstance().getTaskScheduler().schedule(new Runnable() {
-//			@Override
-//			public void run() {
-//				startGame();
-//			}
-//		}, 3000, TimeUnit.MILLISECONDS);
-		
+		}, 3000);		
 	}
 	
 	private void startGame() {
@@ -456,8 +374,6 @@ public class BombersGame extends SFSExtension {
 	}
 	
 	private void endGame() {
-		//CriticalSection.lock();
-		//synchronized (lock) {
 		if (f_isGameStarted == false) {
 			return;
 		}
@@ -469,13 +385,6 @@ public class BombersGame extends SFSExtension {
 		if (f_dieSequence.size() > 0) {
 			PlayerGameProfile lastMan = f_dieSequence.get(0);
 			f_places.add(lastMan.getBaseProfile());
-			savePlayerGameResultToDb(lastMan);
-
-			//adjustPlayerExperience(lastMan, 1);
-//			params.putUtfString("game.gameEnded.WinnerId", lastMan.getUser()
-//					.getName());
-//			params.putInt("game.gameEnded.WinnerExperience", lastMan
-//					.getBaseProfile().getExperience());
 		}
 		if (f_places.size() == 2) {
 			f_dispatcher.getPricelistManager().adjustExperience(f_places.get(1), f_places.get(0));
@@ -486,6 +395,10 @@ public class BombersGame extends SFSExtension {
 					f_places.get(f_places.size() - 3)
 				);
 		}
+		for (PlayerProfile player : f_places) {
+			player.checkLevelUps(f_dispatcher.getPricelistManager());
+		}
+
 		SFSArray expProfiles = new SFSArray();
 		int place = f_places.size();
 		for (PlayerProfile profile : f_places) {
@@ -507,13 +420,8 @@ public class BombersGame extends SFSExtension {
 		roomVariables.add(isGameStartedVariable);
 		getApi().setRoomVariables(null, getParentRoom(), roomVariables);
 
-//		SFSArray usersInfo = getLobbyProfiles();
-//		params.putSFSArray("profiles", usersInfo);
 		send("game.gameEnded", params, getParentRoom().getPlayersList());
-		//}
-		//CriticalSection.unlock();
 	}
-	
 	//Event model
 	
 	public void addGameEvent(GameEvent event) {
@@ -572,6 +480,7 @@ public class BombersGame extends SFSExtension {
 		});
 	}
 	
+	
 	private void intiializeBombActivationCycle() {
 		addDelayedGameEvent(new GameEvent(this) {
 			@Override
@@ -593,10 +502,14 @@ public class BombersGame extends SFSExtension {
 		}, C_BombExplosionInterval);
 	}
 	
+	
 	private void initializeDeathBlocks() {
+		final BombersGame f_thisGame = this;
 		addDelayedGameEvent(new GameEvent(this) {
 			
 			//Fields
+			
+			private DeathObject f_death = new DeathObject(f_thisGame);
 			
 			private int x;
 			private int y;
@@ -609,6 +522,7 @@ public class BombersGame extends SFSExtension {
 			protected void ApplyOnGame(BombersGame game, DynamicGameMap map) {
 				if (map.getObjectTypeAt(x, y) == DynamicGameMap.ObjectType.DEATH_WALL) 	return;
 
+				map.setDynamicObject(x, y, f_death);
 				map.setObjectTypeAt(x, y, DynamicGameMap.ObjectType.DEATH_WALL);
 
 				SFSObject params = new SFSObject();
@@ -651,23 +565,18 @@ public class BombersGame extends SFSExtension {
 		}, C_DeathWallAppearsSince);
 	}
 	
+	
 	private void killPlayer(PlayerGameProfile player) {
-//		synchronized (lock) {
 		player.setIsAlive(false);
-		//adjustPlayerExperience(player, f_currentPlayerRank--);
 		f_dieSequence.remove(player);
 		f_places.add(player.getBaseProfile());
-		savePlayerGameResultToDb(player);
 
 		SFSObject params = new SFSObject();
 		params.putUtfString("UserId", player.getUser().getName());
-		//params.putInt("Rank", f_currentPlayerRank + 1);
-		//params.putInt("Experience", -100000);
 		send("game.playerDied", params, getParentRoom().getPlayersList());
 		if (alivePlayersCount() == 1) {
 			endGame();
 		}
-//		}
 	}
 	
 	public void damagePlayer(final User user, final int damage, final int effect, final boolean isDead) {
@@ -683,8 +592,7 @@ public class BombersGame extends SFSExtension {
 				send("game.playerDamaged", params, getParentRoom().getPlayersList());
 			}
 		} 
-	}
-	
+	}	
 	public void processInputDirectionChanged(final User user, final int inputDirection, final int x, final int y) {
 		addGameEvent(new GameEvent(this) {
 			@Override
@@ -764,11 +672,6 @@ public class BombersGame extends SFSExtension {
 		int xc = (profile.getXi() + 20000) / 40000;
 		int yc = (profile.getYi() + 20000) / 40000;
 		f_weaponsManager.activateWeapon(user, weaponId, xc, yc);
-	}
-	
-	@Deprecated
-	public void activateDynamicObject(User user, int x, int y) {
-		f_dynamicObjectManager.activateDynamicObject(user, x, y);
 	}
 	
 

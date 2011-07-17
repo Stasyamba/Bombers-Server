@@ -8,6 +8,7 @@ import com.smartfoxserver.v2.entities.data.ISFSArray;
 import com.smartfoxserver.v2.entities.data.ISFSObject;
 import com.smartfoxserver.v2.entities.data.SFSArray;
 import com.smartfoxserver.v2.entities.data.SFSObject;
+import com.vensella.bombers.dispatcher.PricelistManager.LevelDescription;
 import com.vensella.bombers.game.Bombers;
 import com.vensella.bombers.game.mapObjects.Locations;
 
@@ -18,7 +19,7 @@ public class PlayerProfile {
 	public static final int C_EnergyPeriod = 10 * 60;
 	public static final int C_MaximumFreeEnergy = 25;
 	
-	public static final int C_BetaMaximunExperience = 1000;
+	public static final int C_BetaMaximunExperience = 600;
 	
 	public static final String C_Id = "Id";
 	public static final String C_Nick = "Nick";
@@ -27,7 +28,7 @@ public class PlayerProfile {
 	public static final String C_Energy = "Energy";
 	
 	public static final String C_LastLogin = "LastLogin";
-	public static final String C_LuckCount = "LuckCount";
+	public static final String С_LastLevelReward = "LastLevelReward";
 	
 	public static final String C_TrainingStatus = "TrainingStatus";
 	
@@ -42,11 +43,6 @@ public class PlayerProfile {
 	public static final String C_Crystal = "Crystal";
 	public static final String C_Adamantium = "Adamantium";
 	public static final String C_Antimatter = "Antimatter";
-	
-	public static final String C_GoldPrize = "GoldPrize";
-	public static final String C_CrystalPrize = "CrystalPrize";
-	public static final String C_AdamantiumPrize = "AdamantiumPrize";
-	public static final String C_AntimatterPrize = "AntimatterPrize";
 	
 	public static final String C_UserId = "UserId";
 	public static final String C_LocationId = "LocationId";
@@ -104,12 +100,7 @@ public class PlayerProfile {
 		f_antimatter = p.getInt(C_Antimatter);
 		f_votes = p.getInt(C_Votes);
 		
-		f_goldPrize = p.getInt(C_GoldPrize);
-		f_crystalPrize = p.getInt(C_CrystalPrize);
-		f_adamantiumPrize = p.getInt(C_AdamantiumPrize);
-		f_antimatterPrize = p.getInt(C_AntimatterPrize);
-		
-		f_luckCount = p.getInt(C_LuckCount);
+		f_lastLevelReward = p.getInt(С_LastLevelReward);
 		f_lastLogin = p.getLong(C_LastLogin);
 		
 		f_trainingStatus = p.getInt(C_TrainingStatus);
@@ -160,20 +151,9 @@ public class PlayerProfile {
 	private int f_antimatter;
 	private int f_votes;
 	
-	//private int f_energyPrize;
-	@Deprecated
-	private int f_goldPrize;
-	@Deprecated
-	private int f_crystalPrize;
-	@Deprecated
-	private int f_adamantiumPrize;
-	@Deprecated
-	private int f_antimatterPrize;
-	
 	private long f_lastLogin;
 	
-	@Deprecated
-	private int f_luckCount;
+	private int f_lastLevelReward;
 	
 	private int f_trainingStatus;
 	
@@ -196,13 +176,9 @@ public class PlayerProfile {
 	public long getLastLogin() { return f_lastLogin; }
 	public void setLastLogin(long lastLogin) { f_lastLogin = lastLogin; }
 	
-	@Deprecated
-	public int getLuckCount() { return f_luckCount; }
-	@Deprecated
-	public void setLuckCount(int luckCount) { f_luckCount = luckCount; }
-	@Deprecated
-	public void addLuckCount(int delta) { f_luckCount += delta; }
-	
+	public int getLastLevelReward() { return f_lastLevelReward; }
+	public void setLastLevelReward(int lastLevelReward) { f_lastLevelReward = lastLevelReward; }
+
 	public String getNick() { return f_nick; }
 	public void setNick(String nick) { f_nick = nick; }
 	
@@ -212,20 +188,6 @@ public class PlayerProfile {
 	public int getExperience() { return f_experience; }
 	public void setExperience(int experience) { f_experience = Math.min(experience, C_BetaMaximunExperience); }
 	public void addExperience(int delta) { f_experience = Math.min(f_experience + delta, C_BetaMaximunExperience); }
-	
-	@Deprecated
-	public int getLevel() {
-		if (LevelTable == null) return 1;
-		int level = 1;
-		for (int i = 0; i < LevelTable.size(); ++i) {
-			if (f_experience >= LevelTable.get(i)) {
-				level = i + 1;
-				continue;
-			}
-			if (f_experience < LevelTable.get(i)) break;
-		}
-		return level;
-	}
 	
 	public int getEnergy() { 
 		long ts = System.currentTimeMillis() / 1000;
@@ -256,34 +218,6 @@ public class PlayerProfile {
 	public int getAntimatter() { return f_antimatter; }
 	public void setAntimatter(int antimatter) { f_antimatter = antimatter; }
 	public void addAntimatter(int delta) { f_antimatter += delta; }
-	
-	@Deprecated
-	public int getGoldPrize() { return f_goldPrize; }
-	@Deprecated
-	public void setGoldPrize(int goldPrize) { f_goldPrize = goldPrize; }
-	@Deprecated
-	public void addGoldPrize(int delta) { f_goldPrize += delta; }
-	
-	@Deprecated
-	public int getCrystalPrize() { return f_crystalPrize; }
-	@Deprecated
-	public void setCrystalPrize(int crystalPrize) { f_crystalPrize = crystalPrize; }
-	@Deprecated
-	public void addCrystalPrize(int delta) { f_crystalPrize += delta; }
-	
-	@Deprecated
-	public int getAdamantiumPrize() { return f_adamantiumPrize; }
-	@Deprecated
-	public void setAdamantiumPrize(int adamantiumPrize) { f_adamantiumPrize = adamantiumPrize; }
-	@Deprecated
-	public void addAdamantiumPrize(int delta) { f_adamantiumPrize += delta; }
-	
-	@Deprecated
-	public int getAntimatterPrize() { return f_antimatterPrize; }
-	@Deprecated
-	public void setAntimatterPrize(int antimatterPrize) { f_antimatterPrize = antimatterPrize; }
-	@Deprecated
-	public void addAntimatterPrize(int delta) { f_antimatterPrize += delta; }
 	
 	public int getVotes() { return f_votes; }
 	public void setVotes(int votes) { f_votes = votes; }
@@ -350,6 +284,22 @@ public class PlayerProfile {
 	
 	//Methods
 	
+	public void checkLevelUps(PricelistManager manager) {
+		LevelDescription level = manager.getLevelFor(this);
+		if (level.getValue() > getLastLevelReward()) {
+			for (int i = getLastLevelReward() + 1; i <= level.getValue(); ++i) {
+				LevelDescription upLevel = manager.getLevel(i);
+				if (upLevel.getReward() != null) {
+					manager.getReward(this, upLevel.getReward());
+				}
+			}
+			setLastLevelReward(level.getValue());
+			setEnergy(Math.max(C_MaximumFreeEnergy, f_energy));
+		}
+	}
+	
+	//SFSObjects generation
+	
 	public SFSArray getBombersData() {
 		SFSArray bombers = new SFSArray();
 		bombers.addIntArray(f_bombers.keySet());
@@ -412,12 +362,7 @@ public class PlayerProfile {
 		profile.putInt(C_Adamantium, f_adamantium);
 		profile.putInt(C_Antimatter, f_antimatter);
 		
-		profile.putInt(C_GoldPrize, f_goldPrize);
-		profile.putInt(C_CrystalPrize, f_crystalPrize);
-		profile.putInt(C_AdamantiumPrize, f_adamantiumPrize);
-		profile.putInt(C_AntimatterPrize, f_antimatterPrize);
-		
-		profile.putInt(C_LuckCount, f_luckCount);
+		profile.putInt(С_LastLevelReward, f_lastLevelReward);
 		profile.putLong(C_LastLogin, f_lastLogin);
 		
 		profile.putInt(C_TrainingStatus, f_trainingStatus);
@@ -438,11 +383,9 @@ public class PlayerProfile {
 			ISFSObject itemInfo = new SFSObject();
 			int itemId = itemIds.get(i);
 			int itemCount = f_items.get(itemId);
-//			if (itemCount > 0) {
 			itemInfo.putInt(C_WeaponId, itemId);
 			itemInfo.putInt(C_Count, itemCount);
 			items.addSFSObject(itemInfo);
-//			}
 		}
 		profile.putSFSArray(C_FldWeaponsOpen, items);
 		
@@ -454,7 +397,6 @@ public class PlayerProfile {
 			medals.addSFSArray(sfsMedalInfo);
 		}
 		profile.putSFSArray(C_FldMedals, medals);
-		
 		
 		return profile;
 	}

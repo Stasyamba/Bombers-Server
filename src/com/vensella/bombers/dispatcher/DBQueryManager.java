@@ -37,7 +37,8 @@ public class DBQueryManager {
 	public static final String SqlUpdateUserDataWhenUserDisconnects = 
 		"update `Users` set `Experience` = ?,  `Energy` = ?, " +
 		"`Nick` = ?, `AuraOne` = ?, `AuraTwo` = ?, `AuraThree` = ?, " +
-		"`RightHand` = ?, `BomberId` = ?, `Photo` = ?, `LastLogin` = ?, `LuckCount` = ?, `TrainingStatus` = ? where `Id` = ?";
+		"`RightHand` = ?, `BomberId` = ?, `Photo` = ?, `LastLogin` = ?, `LastLevelReward` = ?, " +
+		"`TrainingStatus` = ? where `Id` = ?";
 	
 	public static final String SqlUpdatePlayerItems = "update `WeaponsOpen` set `WeaponsOpen` = ? where `UserId` = ?";
 	public static final String SqlUpdatePlayerMedals = "update `Medals` set `Medals` = ? where `UserId` = ?";
@@ -47,6 +48,8 @@ public class DBQueryManager {
 	public static final String SqlSubtractPlayerResources = 
 		"update `Users` set `Gold` = `Gold` - ?, `Crystal` = `Crystal` - ?, `Adamantium` = `Adamantium` - ?, " +
 		"`Antimatter` = `Antimatter` - ?, `Energy` = `Energy` - ? where `Id` = ?";
+	
+	
 	public static final String SqlAddPlayerResourcesPrize = 
 		"update `Users` set `GoldPrize` = `GoldPrize` + ?, `CrystalPrize` = `CrystalPrize` + ?, " +
 		"`AdamantiumPrize` = `AdamantiumPrize` + ?, " +
@@ -57,7 +60,6 @@ public class DBQueryManager {
 			"`Adamantium` = `Adamantium` + ?, `AdamantiumPrize` = `AdamantiumPrize` - ?, " + 
 			"`Antimatter` = `Antimatter` + ?, `AntimatterPrize` = `AntimatterPrize` - ? " +
 			"where `Id` = ?";
-	
 	public static final String SqlInsertPrizeFromWall = "insert into `PrizesFromWall` values (?, ?, ?)";
 	
 	//Nested types

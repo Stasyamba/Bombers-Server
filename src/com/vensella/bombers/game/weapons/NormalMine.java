@@ -36,7 +36,12 @@ public class NormalMine extends DynamicObject {
 				SFSObject params = new SFSObject();
 				if (getOwner() != null) {
 					params.putUtfString("game.DOAct.f.userId", getOwner().getName());
-					game.damagePlayer(getOwner(), PlayerGameProfile.C_HealthQuantum, 0, false);
+					long time = System.currentTimeMillis();
+					PlayerGameProfile player = game.getGameProfile(getOwner());
+					if (player.getDamageTime() + PlayerGameProfile.C_ImmortalTime < time) {
+						player.setDamageTime(time);
+						game.damagePlayer(getOwner(), PlayerGameProfile.C_HealthQuantum, 0, false);
+					}
 				}
 				params.putInt("game.DOAct.f.type", WeaponsManager.WEAPON_MINE_NORMAL);
 				params.putInt("game.DOAct.f.x", x);

@@ -3,7 +3,6 @@ package com.vensella.bombers.dispatcher;
 import java.util.*;
 import java.util.Map.Entry;
 
-
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 
@@ -14,6 +13,7 @@ import org.w3c.dom.NodeList;
 import com.smartfoxserver.v2.entities.data.SFSArray;
 import com.smartfoxserver.v2.entities.data.SFSObject;
 import com.smartfoxserver.v2.extensions.ExtensionLogLevel;
+
 import com.vensella.bombers.game.mapObjects.Locations;
 
 //TODO: Add concurrent locks
@@ -116,89 +116,90 @@ public class PricelistManager {
 			
 	}
 	
+	public class Reward {
+		
+		//Constructor
+		
+		protected Reward(Element rewardElement) {
+			String resourcesRewardString = rewardElement.getAttribute("resources");
+			if (!resourcesRewardString.isEmpty()) {
+				String[] r = resourcesRewardString.split(",");
+				f_goldReward = Integer.parseInt(r[0]);
+				f_crystalReward = Integer.parseInt(r[1]);
+				f_adamantiumReward = Integer.parseInt(r[2]);
+				f_antimatterReward = Integer.parseInt(r[3]);
+				f_energyReward = Integer.parseInt(r[4]);
+			}
+			String experienceRewardString = rewardElement.getAttribute("exp");
+			if (!experienceRewardString.isEmpty()) {
+				f_experienceReward = Integer.parseInt(experienceRewardString);
+			}
+			f_itemsReward = new HashMap<Integer, Integer>();
+			String itemsRewardString = rewardElement.getAttribute("items");
+			String itemsCountsString = rewardElement.getAttribute("itemsCounts");
+			if (!itemsRewardString.isEmpty() && itemsCountsString.isEmpty()) {
+				String[] r = itemsRewardString.split(",");
+				for (int i = 0; i < r.length; ++i) {
+					f_itemsReward.put(Integer.parseInt(r[i]), 1);
+				}
+			}
+			else if (!itemsRewardString.isEmpty() && !itemsCountsString.isEmpty()) {
+				String[] r = itemsRewardString.split(",");
+				String[] c = itemsCountsString.split(",");
+				for (int i = 0; i < r.length; ++i) {
+					f_itemsReward.put(Integer.parseInt(r[i]), Integer.parseInt(c[i]));
+				}
+			}
+		}
+		
+		//Fields
+		
+		private int f_goldReward;
+		private int f_crystalReward;
+		private int f_adamantiumReward;
+		private int f_antimatterReward;
+		private int f_energyReward;
+		
+		private int f_experienceReward;
+		
+		private Map<Integer, Integer> f_itemsReward;
+		
+		//Methods
+		
+		public int getGoldReward() { return f_goldReward; }
+		public int getCrystalReward() { return f_crystalReward; }
+		public int getAdamantiumReward() { return f_adamantiumReward; }
+		public int getAntimatterReward() { return f_antimatterReward; }
+		public int getEnergyReward() { return f_energyReward; }
+		
+		public int getExperienceReward() { return f_experienceReward; }
+		
+		public Map<Integer, Integer> getItemsReward() { return f_itemsReward; }
+		
+		public SFSObject toSFSObject() {
+			SFSObject r = new SFSObject();
+			r.putInt("R0", f_goldReward);
+			r.putInt("R1", f_crystalReward);
+			r.putInt("R2", f_adamantiumReward);
+			r.putInt("R3", f_antimatterReward);
+			r.putInt("R4", f_energyReward);
+			r.putInt("Exp", f_experienceReward);
+			SFSArray items = new SFSArray();
+			for (int item : f_itemsReward.keySet()) {
+				SFSObject it = new SFSObject();
+				it.putInt("Id", item);
+				it.putInt("C", f_itemsReward.get(item));
+				items.addSFSObject(it);
+			}
+			r.putSFSArray("Items", items);
+			return r;
+		}
+		
+	}
+	
 	public class Mission {
 		
 		//Nested type
-		
-		public class MissionReward {
-			
-			//Constructor
-			
-			protected MissionReward(Element rewardElement) {
-				String resourcesRewardString = rewardElement.getAttribute("resources");
-				if (!resourcesRewardString.isEmpty()) {
-					String[] r = resourcesRewardString.split(",");
-					f_goldReward = Integer.parseInt(r[0]);
-					f_crystalReward = Integer.parseInt(r[1]);
-					f_adamantiumReward = Integer.parseInt(r[2]);
-					f_antimatterReward = Integer.parseInt(r[3]);
-					f_energyReward = Integer.parseInt(r[4]);
-				}
-				String experienceRewardString = rewardElement.getAttribute("exp");
-				if (!experienceRewardString.isEmpty()) {
-					f_experienceReward = Integer.parseInt(experienceRewardString);
-				}
-				f_itemsReward = new HashMap<Integer, Integer>();
-				String itemsRewardString = rewardElement.getAttribute("items");
-				String itemsCountsString = rewardElement.getAttribute("itemsCounts");
-				if (!itemsRewardString.isEmpty() && itemsCountsString.isEmpty()) {
-					String[] r = itemsRewardString.split(",");
-					for (int i = 0; i < r.length; ++i) {
-						f_itemsReward.put(Integer.parseInt(r[i]), 1);
-					}
-				}
-				else if (!itemsRewardString.isEmpty() && !itemsCountsString.isEmpty()) {
-					String[] r = itemsRewardString.split(",");
-					String[] c = itemsCountsString.split(",");
-					for (int i = 0; i < r.length; ++i) {
-						f_itemsReward.put(Integer.parseInt(r[i]), Integer.parseInt(c[i]));
-					}
-				}
-			}
-			
-			//Fields
-			
-			private int f_goldReward;
-			private int f_crystalReward;
-			private int f_adamantiumReward;
-			private int f_antimatterReward;
-			private int f_energyReward;
-			
-			private int f_experienceReward;
-			
-			private Map<Integer, Integer> f_itemsReward;
-			
-			//Methods
-			
-			public int getGoldReward() { return f_goldReward; }
-			public int getCrystalReward() { return f_crystalReward; }
-			public int getAdamantiumReward() { return f_adamantiumReward; }
-			public int getAntimatterReward() { return f_antimatterReward; }
-			public int getEnergyReward() { return f_energyReward; }
-			
-			public int getExperienceReward() { return f_experienceReward; }
-			
-			public Map<Integer, Integer> getItemsReward() { return f_itemsReward; }
-			
-			public SFSObject toSFSObject() {
-				SFSObject r = new SFSObject();
-				r.putInt("R0", f_goldReward);
-				r.putInt("R1", f_crystalReward);
-				r.putInt("R2", f_adamantiumReward);
-				r.putInt("R3", f_antimatterReward);
-				r.putInt("R4", f_energyReward);
-				r.putInt("Exp", f_experienceReward);
-				SFSArray items = new SFSArray();
-				for (int item : f_itemsReward.keySet()) {
-					SFSObject it = new SFSObject();
-					it.putInt("Id", item);
-					it.putInt("C", f_itemsReward.get(item));
-				}
-				r.putSFSArray("Items", items);
-				return r;
-			}
-			
-		}
 		
 		//Constructors
 		
@@ -207,11 +208,11 @@ public class PricelistManager {
 			f_locationId = Integer.parseInt(missionElement.getAttribute("location"));
 			f_energyCost = Integer.parseInt(missionElement.getAttribute("energy")); 
 			Element bronzeRewardElememt = (Element)(missionElement.getElementsByTagName("bronze")).item(0);
-			f_bronzeReward = new MissionReward(bronzeRewardElememt);
+			f_bronzeReward = new Reward(bronzeRewardElememt);
 			Element silverRewardElememt = (Element)(missionElement.getElementsByTagName("silver")).item(0);
-			f_silverReward = new MissionReward(silverRewardElememt);
+			f_silverReward = new Reward(silverRewardElememt);
 			Element goldRewardElememt = (Element)(missionElement.getElementsByTagName("gold")).item(0);
-			f_goldReward = new MissionReward(goldRewardElememt);
+			f_goldReward = new Reward(goldRewardElememt);
 		}
 		
 		//Fields
@@ -221,9 +222,9 @@ public class PricelistManager {
 		
 		private int f_energyCost;
 		
-		private MissionReward f_bronzeReward;
-		private MissionReward f_silverReward;
-		private MissionReward f_goldReward;
+		private Reward f_bronzeReward;
+		private Reward f_silverReward;
+		private Reward f_goldReward;
 		
 		//Methods
 		
@@ -232,9 +233,9 @@ public class PricelistManager {
 		
 		public int getEnergyCost() { return f_energyCost; }
 		
-		public MissionReward getBronzeReward() { return f_bronzeReward; }
-		public MissionReward getSilverReward() { return f_silverReward; }
-		public MissionReward getGoldReward() { return f_goldReward; }
+		public Reward getBronzeReward() { return f_bronzeReward; }
+		public Reward getSilverReward() { return f_silverReward; }
+		public Reward getGoldReward() { return f_goldReward; }
 		
 	}
 	
@@ -256,6 +257,12 @@ public class PricelistManager {
 			String[] fines = levelElement.getAttribute("fines").split(",");
 			f_fineMinusOne = Integer.parseInt(fines[0]);
 			f_fineMinusTwo = Integer.parseInt(fines[1]);
+			
+			NodeList nl = levelElement.getElementsByTagName("reward");
+			if (nl.getLength() > 0) {
+				Element rewardElement = (Element)nl.item(0);
+				f_reward = new Reward(rewardElement);
+			}
 		}
 		
 		//Fields
@@ -275,6 +282,8 @@ public class PricelistManager {
 		public int f_fineMinusOne;
 		public int f_fineMinusTwo;
 		
+		public Reward f_reward;
+		
 		//Methods
 		
 		public int getValue() { return f_value; }
@@ -291,6 +300,8 @@ public class PricelistManager {
 		
 		public int getFineMinusOne() { return f_fineMinusOne; }
 		public int getFineMinusTwo() { return f_fineMinusTwo; }
+		
+		public Reward getReward() { return f_reward; }
 		
 		public int getDeltaFor(LevelDescription another) {
 			int g = another.getGroup() - f_group;
@@ -312,11 +323,6 @@ public class PricelistManager {
 	private BombersDispatcher f_dispatcher;
 	
 	private SFSObject f_sfsObject;
-	
-//	private int f_goldCost;
-//	private int f_crystalCost;
-//	private int f_adamantiumCost;
-//	private int f_antimatterCost;
 	
 	private ArrayList<Integer[]> f_goldCostPacks;
 	private ArrayList<Integer[]> f_crystalCostPacks;
@@ -558,6 +564,41 @@ public class PricelistManager {
 		return r;
 	}
 	
+	public LevelDescription getLevel(int level) {
+		for (LevelDescription l : f_levels) {
+			if (l.getValue() == level) {
+				return l;
+			}
+		}
+		return null;
+	}
+	
+	public void getReward(PlayerProfile profile, Reward reward) {
+		if (reward.getExperienceReward() > 0) {
+			profile.addExperience(reward.getExperienceReward());
+			profile.checkLevelUps(this);
+		}
+		
+		profile.addGold(reward.getGoldReward());
+		profile.addCrystal(reward.getCrystalReward());
+		profile.addAdamantium(reward.getAdamantiumReward());
+		profile.addAntimatter(reward.getAntimatterReward());
+		profile.addEnergy(reward.getEnergyReward());
+		f_dispatcher.getDbManager().ScheduleUpdateQuery(
+				DBQueryManager.SqlAddPlayerResources, new Object[] {
+				reward.getGoldReward(),
+				reward.getCrystalReward(),
+				reward.getAdamantiumReward(),
+				reward.getAntimatterReward(),
+				reward.getEnergyReward(),
+				profile.getId()
+			});
+		
+		for (int itemId : reward.getItemsReward().keySet()) {
+			profile.addItems(itemId, reward.getItemsReward().get(itemId));
+		}
+	}
+	
 	public void adjustExperience(PlayerProfile placeOne, PlayerProfile placeTwo) {
 		LevelDescription levelOne = getLevelFor(placeOne);
 		LevelDescription levelTwo = getLevelFor(placeTwo);
@@ -692,10 +733,6 @@ public class PricelistManager {
 			profile.addItems(partId, -coll.getCountForItem(partId));
 		}
 		profile.addItems(collectionId, 1);
-		f_dispatcher.getDbManager().ScheduleUpdateQuery(
-				DBQueryManager.SqlUpdatePlayerItems, 
-				new Object[] { profile.getItemsData().toJson(), profile.getId() }
-			);		
 		return true;
 	}
 	
@@ -710,11 +747,6 @@ public class PricelistManager {
 	public SFSObject toSFSObject() {
 		if (f_sfsObject == null) {
 			f_sfsObject = new SFSObject();
-			
-//			f_sfsObject.putInt("GoldCost", f_goldCost);
-//			f_sfsObject.putInt("CrystalCost", f_crystalCost);
-//			f_sfsObject.putInt("AdamantiumCost", f_adamantiumCost);
-//			f_sfsObject.putInt("AntimatterCost", f_antimatterCost);
 			
 			//Resources prices
 			
@@ -784,7 +816,13 @@ public class PricelistManager {
 			
 			SFSArray levels = new SFSArray();
 			for (LevelDescription level : f_levels) {
-				levels.addInt(level.getExperience());
+				SFSObject levelObject = new SFSObject();
+				levelObject.putInt("Level", level.getValue());
+				levelObject.putInt("Exp", level.getExperience());
+				if (level.getReward() != null) {
+					levelObject.putSFSObject("Reward", level.getReward().toSFSObject());
+				}
+				levels.addSFSObject(levelObject);
 			}
 			f_sfsObject.putSFSArray("Levels", levels);
 			
@@ -799,6 +837,7 @@ public class PricelistManager {
 				sfsM.putSFSObject("Bronze", m.getBronzeReward().toSFSObject());
 				sfsM.putSFSObject("Silver", m.getSilverReward().toSFSObject());
 				sfsM.putSFSObject("Gold", m.getGoldReward().toSFSObject());
+				missions.addSFSObject(sfsM);
 			}
 			f_sfsObject.putSFSArray("Missions", missions);
 			

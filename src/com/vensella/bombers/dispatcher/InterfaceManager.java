@@ -7,8 +7,8 @@ import com.smartfoxserver.v2.entities.User;
 import com.smartfoxserver.v2.entities.data.ISFSArray;
 import com.smartfoxserver.v2.entities.data.SFSObject;
 import com.smartfoxserver.v2.extensions.ExtensionLogLevel;
+
 import com.vensella.bombers.dispatcher.PricelistManager.Mission;
-import com.vensella.bombers.dispatcher.PricelistManager.Mission.MissionReward;
 
 public class InterfaceManager {
 	
@@ -50,6 +50,7 @@ public class InterfaceManager {
 			params.putInt("interface.setTrainingStatus.result.f.trainingStatus", status);
 			if (status == C_GiveExperienceTrainingStatus) {
 				profile.addExperience(C_GiveExperienceOnTraining);
+				profile.checkLevelUps(f_dispatcher.getPricelistManager());
 				params.putInt("interface.setTrainingStatus.result.f.youNewExperience", profile.getExperience());
 			}
 			f_dispatcher.send("interface.setTrainingStatus.result", params, user);
@@ -61,11 +62,6 @@ public class InterfaceManager {
 	public void dropItem(User user, int itemId) {
 		PlayerProfile profile = f_dispatcher.getUserProfile(user);
 		profile.removeItem(itemId);
-		String sql = DBQueryManager.SqlUpdatePlayerItems;
-		f_dispatcher.getDbManager().ScheduleUpdateQuery(sql, new Object[]{ 
-				profile.getItemsData().toJson(),
-				profile.getId()
-		});
 	}
 	
 	public void buyItem(User user, int itemId)
@@ -289,7 +285,7 @@ public class InterfaceManager {
 			params.putBool("interface.missions.submitResult.result.f.status", true);			
 			if (isBronze && !profile.hasMedal(missionId, C_BronzeMedal)) {
 				profile.setMedal(missionId, C_BronzeMedal);
-				getReward(profile, mission.getBronzeReward());
+				f_dispatcher.getPricelistManager().getReward(profile, mission.getBronzeReward());
 				medalTaken = true;
 				
 				//f_dispatcher.trace("Bronze medal");
@@ -300,7 +296,7 @@ public class InterfaceManager {
 			}
 			if (isSilver && !profile.hasMedal(missionId, C_SilverMedal)) {
 				profile.setMedal(missionId, C_SilverMedal);
-				getReward(profile, mission.getSilverReward());
+				f_dispatcher.getPricelistManager().getReward(profile, mission.getSilverReward());
 				medalTaken = true;
 				
 				//f_dispatcher.trace("Silver medal");
@@ -311,7 +307,7 @@ public class InterfaceManager {
 			}
 			if (isGold && !profile.hasMedal(missionId, C_GoldMedal)) {
 				profile.setMedal(missionId, C_GoldMedal);
-				getReward(profile, mission.getGoldReward());
+				f_dispatcher.getPricelistManager().getReward(profile, mission.getGoldReward());
 				medalTaken = true;
 				
 				//f_dispatcher.trace("Gold medal");
@@ -331,36 +327,6 @@ public class InterfaceManager {
 			f_dispatcher.send("interface.missions.submitResult.result", params, user); 
 		}
 	}
-	
-	private void getReward(PlayerProfile profile, MissionReward reward) {
-		profile.addExperience(reward.getExperienceReward());
-		
-		profile.addGold(reward.getGoldReward());
-		profile.addCrystal(reward.getCrystalReward());
-		profile.addAdamantium(reward.getAdamantiumReward());
-		profile.addAntimatter(reward.getAntimatterReward());
-		profile.addEnergy(reward.getEnergyReward());
-		f_dispatcher.getDbManager().ScheduleUpdateQuery(
-				DBQueryManager.SqlAddPlayerResources, new Object[] {
-				reward.getGoldReward(),
-				reward.getCrystalReward(),
-				reward.getAdamantiumReward(),
-				reward.getAntimatterReward(),
-				reward.getEnergyReward(),
-				profile.getId()
-			});
-		
-		for (int itemId : reward.getItemsReward().keySet()) {
-			profile.addItems(itemId, reward.getItemsReward().get(itemId));
-		}
-		f_dispatcher.getDbManager().ScheduleUpdateQuery(
-				DBQueryManager.SqlUpdatePlayerItems, new Object[] { 
-				profile.getItemsData().toJson(), 
-				profile.getId() 
-			});
-	}
-	
-	
 	
 	
 }

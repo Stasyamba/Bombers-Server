@@ -794,6 +794,7 @@ public class DynamicGameMap {
 		if (dyn != null && dyn.getCanBeActivatedByPlayer()) {
 			dyn.setOwner(profile.getUser());
 			f_game.addGameEvent(dyn.getActivateEvent());
+			removeDynamicObject(x, y);
 		}			
 	}
 }
