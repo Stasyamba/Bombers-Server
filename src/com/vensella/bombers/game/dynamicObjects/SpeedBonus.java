@@ -6,6 +6,7 @@ import com.vensella.bombers.game.BombersGame;
 import com.vensella.bombers.game.DynamicObject;
 import com.vensella.bombers.game.DynamicObjectManager;
 import com.vensella.bombers.game.PlayerGameProfile;
+import com.vensella.bombers.game.WeaponActivateEvent;
 import com.vensella.bombers.game.mapObjects.DynamicGameMap;
 
 public class SpeedBonus extends DynamicObject {
@@ -44,6 +45,11 @@ public class SpeedBonus extends DynamicObject {
 				getGame().send("game.DOAct", params, getGame().getParentRoom().getPlayersList());	
 			}
 		};
+	}
+	
+	@Override
+	public void destoyEvent(WeaponActivateEvent baseEvent, BombersGame game, DynamicGameMap map, int weaponId) {
+		
 	}
 
 }

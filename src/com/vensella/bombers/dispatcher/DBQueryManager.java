@@ -5,7 +5,9 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
+import com.smartfoxserver.v2.SmartFoxServer;
 import com.smartfoxserver.v2.entities.data.ISFSArray;
 import com.smartfoxserver.v2.entities.data.SFSArray;
 import com.smartfoxserver.v2.extensions.ExtensionLogLevel;
@@ -25,6 +27,7 @@ public class DBQueryManager {
 	public static final String SqlSelectPlayerBombers = "select * from `BombersOpen` where `UserId` =  ?";
 	public static final String SqlSelectPlayerItems = "select * from `WeaponsOpen` where `UserId` = ?";
 	public static final String SqlSelectPlayerMedals = "select * from `Medals` where `UserId` = ?";
+	public static final String SqlSelectCustomParameters = "select * from `CustomParameters` where `UserId` = ?";
 	
 	public static final String SqlSelectPrizeForInviting = "select * from `PrizesFromWall` where `PrizeActivatorId` = ?";
 	
@@ -33,6 +36,9 @@ public class DBQueryManager {
 	public static final String SqlInsertPlayerBombers = "insert into `BombersOpen` (`UserId`, `BombersOpen`) values (?, ?)";
 	public static final String SqlInsertPlayerItems = "insert into `WeaponsOpen` (`UserId`, `WeaponsOpen`) values (?, ?)";
 	public static final String SqlInsertPlayerMedals = "insert into `Medals` (`UserId`, `Medals`) values (?, ?)";
+	public static final String SqlInsertCustomParameters = 
+		"insert into `CustomParameters` (`UserId`, `CustomParameters`) values (?, ?)";
+	
 	
 	public static final String SqlUpdateUserDataWhenUserDisconnects = 
 		"update `Users` set `Experience` = ?,  `Energy` = ?, " +
@@ -42,6 +48,9 @@ public class DBQueryManager {
 	
 	public static final String SqlUpdatePlayerItems = "update `WeaponsOpen` set `WeaponsOpen` = ? where `UserId` = ?";
 	public static final String SqlUpdatePlayerMedals = "update `Medals` set `Medals` = ? where `UserId` = ?";
+	public static final String SqlUpdatePlayerCustomParameters = 
+		"update `CustomParameters` set `CustomParameters` = ? where `UserId` = ?";
+	
 	public static final String SqlAddPlayerResources = 
 		"update `Users` set `Gold` = `Gold` + ?, `Crystal` = `Crystal` + ?, `Adamantium` = `Adamantium` + ?, " +
 		"`Antimatter` = `Antimatter` + ?, `Energy` = `Energy` + ? where `Id` = ?";
@@ -71,7 +80,10 @@ public class DBQueryManager {
 		private String f_query;
 		private Object[] f_params;
 		private QueryCallback f_callback;
-		private Boolean f_isUpdate;
+		private boolean f_isUpdate;
+		
+		private boolean f_isCustomAction;
+		private Runnable f_customAction;
 		
 		//Constructors
 		
@@ -83,9 +95,17 @@ public class DBQueryManager {
 			f_callback = callback;
 		}
 		
+		public QueuedQuery(Runnable customAction) {
+			f_customAction = customAction;
+			f_isCustomAction = true;
+		}
+		
 		//Methods
 		
-		public Boolean isUpdate() { return f_isUpdate; }
+		public boolean isCustomAction() { return f_isCustomAction; }
+		public Runnable getCustomAction() { return f_customAction; }
+		
+		public boolean isUpdate() { return f_isUpdate; }
 		public String getQuery() { return f_query; }
 		public Object[] getParams() { return f_params; }
 		public QueryCallback getCallback() { return f_callback; }
@@ -103,22 +123,35 @@ public class DBQueryManager {
 	private Thread f_workingThread;
 	private BlockingQueue<QueuedQuery> f_queue;
 	
+	private volatile boolean f_running;
+	
 	//Constructors
 	
-	public DBQueryManager(BombersDispatcher dispatcher)
+	public DBQueryManager(BombersDispatcher dispatcher) {
+		this(dispatcher, "Bombers DB Query Thread");
+	}
+	
+	public DBQueryManager(BombersDispatcher dispatcher, String name)
 	{
+		f_running = true;
 		f_dispatcher = dispatcher;
 		f_queue = new LinkedBlockingQueue<DBQueryManager.QueuedQuery>();
 		f_workingThread = new Thread(new Runnable() {
 			@Override
 			public void run() {
-				while (true){
+				while (f_running || !f_queue.isEmpty()){
 					QueryCallback cb = null;
 					String sql = null;
 					Object[] params = null;
 					try
 					{
 						QueuedQuery q = f_queue.take();
+						
+						if (q.isCustomAction()) {
+							q.getCustomAction().run();
+							continue;
+						}
+						
 						sql = q.getQuery();
 						params = q.getParams();
 						cb = q.getCallback();
@@ -127,7 +160,11 @@ public class DBQueryManager {
 							PreparedStatement st = conn.prepareStatement(q.getQuery());
 							int i = 1;
 							for (Object p : q.getParams()) {
-								st.setString(i++, p.toString());
+								if (p instanceof Integer) {
+									st.setInt(i++, (Integer)p);
+								} else {
+									st.setString(i++, p.toString());
+								}
 							}
 							if (q.isUpdate()) {
 								SFSArray result = SFSArray.newInstance();
@@ -164,7 +201,7 @@ public class DBQueryManager {
 					}
 				}
 			}
-		}, "DB Query Thread");
+		}, name);
 		f_workingThread.start();
 	}
 			
@@ -186,6 +223,20 @@ public class DBQueryManager {
 		assert callback != null;
 		QueuedQuery q = new QueuedQuery(false, callback, query, params);
 		f_queue.add(q);
+	}
+	
+	public void ScheduleCustomAction(Runnable action) {
+		QueuedQuery q = new QueuedQuery(action);
+		f_queue.add(q);
+	}
+	
+	public void beginDestroy() {
+		SmartFoxServer.getInstance().getTaskScheduler().schedule(new Runnable() {
+			@Override
+			public void run() {
+				f_running = false;
+			}
+		}, 200, TimeUnit.MILLISECONDS);
 	}
 	
 	//Static methods

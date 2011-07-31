@@ -13,6 +13,7 @@ public class InterfaceBuyItemEventHandler extends BaseClientRequestHandler {
 	//Constants
 	
 	private static final String C_FldItemId = "interface.buyItem.fields.itemId";
+	private static final String C_FldResourceType = "interface.buyItem.fields.resourceType";
 	
 	//Methods
 	
@@ -20,8 +21,9 @@ public class InterfaceBuyItemEventHandler extends BaseClientRequestHandler {
 	public void handleClientRequest(User user, ISFSObject params) {
 		BombersDispatcher dispatcher = (BombersDispatcher)getParentExtension();
 		int itemId = params.getInt(C_FldItemId);
+		int resourceType = params.getInt(C_FldResourceType);
 		
-		dispatcher.getInterfaceManager().buyItem(user, itemId);
+		dispatcher.getInterfaceManager().buyItem(user, itemId, resourceType);
 	}
 
 }

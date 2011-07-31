@@ -71,8 +71,10 @@ public class NormalDynamite extends DynamicObject {
 						map.setDamageObject(x, y - i, dam);
 						DynamicObject d = map.getDynamicObject(x, y - i);
 						if (d != null && d.getCanBeDestroyed()) {
-							beginDestroyingDynamicObject(x, y - i);
-							map.removeDynamicObject(x, y - i);
+							d.destoyEvent(this, game, map, WeaponsManager.WEAPON_BOMB_DYNAMITE);
+						}
+						if (d != null && d.getStopsExplosion()) {
+							break;
 						}
 					}
 				}
@@ -89,8 +91,10 @@ public class NormalDynamite extends DynamicObject {
 						map.setDamageObject(x + i, y, dam);
 						DynamicObject d = map.getDynamicObject(x + i, y);
 						if (d != null && d.getCanBeDestroyed()) {
-							beginDestroyingDynamicObject(x + i, y);
-							map.removeDynamicObject(x + i, y);
+							d.destoyEvent(this, game, map, WeaponsManager.WEAPON_BOMB_DYNAMITE);
+						}
+						if (d != null && d.getStopsExplosion()) {
+							break;
 						}
 					}
 				}
@@ -107,8 +111,10 @@ public class NormalDynamite extends DynamicObject {
 						map.setDamageObject(x, y + i, dam);
 						DynamicObject d = map.getDynamicObject(x, y + i);
 						if (d != null && d.getCanBeDestroyed()) {
-							beginDestroyingDynamicObject(x, y + i);
-							map.removeDynamicObject(x, y + i);
+							d.destoyEvent(this, game, map, WeaponsManager.WEAPON_BOMB_DYNAMITE);
+						}
+						if (d != null && d.getStopsExplosion()) {
+							break;
 						}
 					}
 				}
@@ -125,8 +131,10 @@ public class NormalDynamite extends DynamicObject {
 						map.setDamageObject(x - i, y, dam);
 						DynamicObject d = map.getDynamicObject(x - i, y);
 						if (d != null && d.getCanBeDestroyed()) {
-							beginDestroyingDynamicObject(x - i, y);
-							map.removeDynamicObject(x - i, y);
+							d.destoyEvent(this, game, map, WeaponsManager.WEAPON_BOMB_DYNAMITE);
+						}
+						if (d != null && d.getStopsExplosion()) {
+							break;
 						}
 					}
 				}
@@ -150,6 +158,11 @@ public class NormalDynamite extends DynamicObject {
 				destroyAll((int)dam.getLifetime());
 			}
 		};
+	}
+	
+	@Override
+	public void destoyEvent(WeaponActivateEvent baseEvent, BombersGame game, DynamicGameMap map, int weaponId) {
+		
 	}
 
 }

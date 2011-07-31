@@ -69,6 +69,8 @@ public class PlayerGameProfile {
 		f_auraOne = profile.getAuraOne();
 		f_auraTwo = profile.getAuraTwo();
 		f_auraThree = profile.getAuraThree();
+		
+		Bombers.setBomberParameters(this);
 	}
 	
 	//Methods

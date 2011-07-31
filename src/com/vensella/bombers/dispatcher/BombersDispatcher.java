@@ -61,6 +61,7 @@ public class BombersDispatcher extends SFSExtension {
 	
 	//Managers
 	
+	private RecordsManager f_recordsManager;
 	private DBQueryManager f_dbQueryManager;
 	private InterfaceManager f_interfaceManager;
 	private MoneyManager f_moneyManager;
@@ -85,6 +86,7 @@ public class BombersDispatcher extends SFSExtension {
 		//Initialize fields
 		
 		f_dbQueryManager = new DBQueryManager(this);
+		f_recordsManager = new RecordsManager(this);
 		f_interfaceManager = new InterfaceManager(this);
 		f_moneyManager = new MoneyManager(this);
 		f_mapManager = new MapManager(this);
@@ -161,6 +163,7 @@ public class BombersDispatcher extends SFSExtension {
 		addRequestHandler("interface.getUsersInfo", InterfaceGetUsersInfoEventHandler.class);
 		
 		addRequestHandler("interface.setTrainingStatus", InterfaceSetTrainingStatusEventHandler.class);
+		addRequestHandler("interface.setCustomParameter", InterfaceSetCustomParameterEventHandler.class);
 		
 //		addRequestHandler("inerface.openLocation", null);
 		addRequestHandler("interface.missions.start", MissionStartEventHandler.class);
@@ -185,6 +188,8 @@ public class BombersDispatcher extends SFSExtension {
 	}
 	
 	//Special methods
+	
+	public RecordsManager getRecordsManager() { return f_recordsManager; }
 	
 	public MoneyManager getMoneyManager() { return f_moneyManager; }
 	
@@ -217,8 +222,7 @@ public class BombersDispatcher extends SFSExtension {
 	//Login
 	//
 	
-	private void saveProfileToDb(User user) {
-		PlayerProfile profile = getUserProfile(user);
+	private void saveProfileToDb(PlayerProfile profile) {
 		String sql = DBQueryManager.SqlUpdateUserDataWhenUserDisconnects;
 		f_dbQueryManager.ScheduleUpdateQuery(sql, new Object[] {
 				profile.getExperience(),
@@ -238,6 +242,11 @@ public class BombersDispatcher extends SFSExtension {
 		f_dbQueryManager.ScheduleUpdateQuery(
 				DBQueryManager.SqlUpdatePlayerItems, new Object[] { 
 				profile.getItemsData().toJson(), 
+				profile.getId() 
+			});
+		f_dbQueryManager.ScheduleUpdateQuery(
+				DBQueryManager.SqlUpdatePlayerCustomParameters, new Object[] { 
+				profile.getCustomParametersData().toJson(), 
 				profile.getId() 
 			});
 	}
@@ -266,10 +275,10 @@ public class BombersDispatcher extends SFSExtension {
 					st.setString(2, dummyJson);
 					st.executeUpdate();
 					
-					st = conn.prepareStatement(DBQueryManager.SqlInsertPlayerBombers);
-					st.setString(1, userId);
-					st.setString(2, dummyJson);
-					st.executeUpdate();
+//					st = conn.prepareStatement(DBQueryManager.SqlInsertPlayerBombers);
+//					st.setString(1, userId);
+//					st.setString(2, dummyJson);
+//					st.executeUpdate();
 					
 				    st = conn.prepareStatement(DBQueryManager.SqlInsertPlayerItems);
 					st.setString(1, userId);
@@ -277,6 +286,11 @@ public class BombersDispatcher extends SFSExtension {
 					st.executeUpdate();
 					
 				    st = conn.prepareStatement(DBQueryManager.SqlInsertPlayerMedals);
+					st.setString(1, userId);
+					st.setString(2, dummyJson);
+					st.executeUpdate();
+					
+				    st = conn.prepareStatement(DBQueryManager.SqlInsertCustomParameters);
 					st.setString(1, userId);
 					st.setString(2, dummyJson);
 					st.executeUpdate();
@@ -292,11 +306,11 @@ public class BombersDispatcher extends SFSExtension {
 						SFSArray.newFromResultSet(st.executeQuery()).getSFSObject(0).getUtfString("LocationsOpen")
 					);
 					
-					st = conn.prepareStatement(DBQueryManager.SqlSelectPlayerBombers);
-					st.setString(1, userId);
-					ISFSArray bombersData = SFSArray.newFromJsonData(
-						SFSArray.newFromResultSet(st.executeQuery()).getSFSObject(0).getUtfString("BombersOpen")
-					);
+//					st = conn.prepareStatement(DBQueryManager.SqlSelectPlayerBombers);
+//					st.setString(1, userId);
+//					ISFSArray bombersData = SFSArray.newFromJsonData(
+//						SFSArray.newFromResultSet(st.executeQuery()).getSFSObject(0).getUtfString("BombersOpen")
+//					);
 					
 					st = conn.prepareStatement(DBQueryManager.SqlSelectPlayerItems);
 					st.setString(1, userId);
@@ -310,8 +324,21 @@ public class BombersDispatcher extends SFSExtension {
 						SFSArray.newFromResultSet(st.executeQuery()).getSFSObject(0).getUtfString("Medals")
 					);
 					
-					profile = new PlayerProfile(profileData, locationsData, itemsData, bombersData, medalsData);
+					st = conn.prepareStatement(DBQueryManager.SqlSelectCustomParameters);
+					st.setString(1, userId);
+					ISFSArray customParametersData = SFSArray.newFromJsonData(
+						SFSArray.newFromResultSet(st.executeQuery()).getSFSObject(0).getUtfString("CustomParameters")
+					);
+					
+					profile = new PlayerProfile(
+							profileData, 
+							locationsData, 
+							itemsData, 
+							medalsData, 
+							customParametersData
+						);
 				}
+				
 			}
 			catch (Exception ex) {
 				trace (ExtensionLogLevel.ERROR, "Something bad happened during user load, user login = " + userId);
@@ -374,8 +401,21 @@ public class BombersDispatcher extends SFSExtension {
 	
 	public void processUserLeave(User user) {
 		trace(ExtensionLogLevel.WARN, "User leave, login = ", user.getName());
-		
-		saveProfileToDb(user);
+		PlayerProfile profile = getUserProfile(user);
+		Reward sessionReward = profile.getSessionReward();
+		if (sessionReward.isEmpty() == false) {
+			getDbManager().ScheduleUpdateQuery(
+					DBQueryManager.SqlAddPlayerResources, new Object[] {
+					sessionReward.getGoldReward(),
+					sessionReward.getCrystalReward(),
+					sessionReward.getAdamantiumReward(),
+					sessionReward.getAntimatterReward(),
+					sessionReward.getEnergyReward(),
+					profile.getId()
+				});
+			profile.removeSessionReward();
+		}
+		saveProfileToDb(profile);
 		f_profiles.remove(user);
 	}
 	

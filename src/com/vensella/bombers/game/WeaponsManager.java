@@ -285,6 +285,10 @@ public class WeaponsManager {
 								}
 							};
 						}
+						@Override
+						public void destoyEvent(WeaponActivateEvent baseEvent, BombersGame game, DynamicGameMap map, int weaponId) {
+							
+						}
 					};
 					map.setDynamicObject(x, y, obj);
 
@@ -296,6 +300,8 @@ public class WeaponsManager {
 					f_game.send("game.DOAdd", params, f_game.getParentRoom().getPlayersList());					
 				}				
 			}
+			
+			
 		});				
 	}
 	
@@ -367,7 +373,7 @@ public class WeaponsManager {
 							params.putInt("game.WDA.f.type", weaponId);
 							f_game.send("game.WDA", params, f_game.getParentRoom().getPlayersList());							
 						}
-					}, 20000);
+					}, 2 * 60 * 1000);
 					
 					SFSObject params = new SFSObject();
 					params.putUtfString("game.WA.f.userId", user.getName());

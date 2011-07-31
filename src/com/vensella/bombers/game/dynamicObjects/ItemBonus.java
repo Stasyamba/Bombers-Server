@@ -9,14 +9,16 @@ import com.vensella.bombers.game.PlayerGameProfile;
 import com.vensella.bombers.game.WeaponActivateEvent;
 import com.vensella.bombers.game.mapObjects.DynamicGameMap;
 
-public class BombCountBonus extends DynamicObject {
+public class ItemBonus extends DynamicObject {
 
 	//Constructor
 	
-	public BombCountBonus(BombersGame game, int x, int y) {
+	public ItemBonus(BombersGame game, int x, int y, int itemType, int count) {
 		super(game, true, true);
 		f_x = x;
 		f_y = y;
+		f_itemType = itemType;
+		f_count = count;
 	}
 	
 	//Fields
@@ -24,7 +26,13 @@ public class BombCountBonus extends DynamicObject {
 	private int f_x;
 	private int f_y;
 	
+	private int f_itemType;
+	private int f_count;
+	
 	//Methods
+	
+	public int getItemType() { return f_itemType; }
+	public int getCount() { return f_count; }
 	
 	@Override
 	public GameEvent getActivateEvent() {
@@ -32,13 +40,15 @@ public class BombCountBonus extends DynamicObject {
 			@Override
 			protected void ApplyOnGame(BombersGame game, DynamicGameMap map) {
 				PlayerGameProfile profile = game.getGameProfile(getOwner());
-				profile.releaseBomb();
+				profile.getBaseProfile().addItems(f_itemType, f_count);
 				setActivated(true);
 				map.removeDynamicObject(f_x, f_y);
 				
 				SFSObject params = new SFSObject();
 				params.putUtfString("game.DOAct.f.userId", getOwner().getName());
-				params.putInt("game.DOAct.f.type", DynamicObjectManager.BONUS_ADD_BOMB);
+				params.putInt("game.DOAct.f.type", DynamicObjectManager.BONUS_ADD_ITEM);
+				params.putInt("game.DOAct.f.itemType", f_itemType);
+				params.putInt("game.DOAct.f.count", f_count);
 				params.putInt("game.DOAct.f.x", f_x);
 				params.putInt("game.DOAct.f.y", f_y);
 				params.putBool("game.DOAct.f.isRemoved", true);
@@ -46,11 +56,11 @@ public class BombCountBonus extends DynamicObject {
 			}
 		};
 	}
-
+	
 	@Override
 	public void destoyEvent(WeaponActivateEvent baseEvent, BombersGame game, DynamicGameMap map, int weaponId) {
 		
 	}
-	
+
 
 }

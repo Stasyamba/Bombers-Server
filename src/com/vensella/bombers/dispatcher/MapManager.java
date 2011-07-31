@@ -108,5 +108,7 @@ public class MapManager {
 		return new DynamicGameMap(game, candidates.get(index % candidates.size()));
 	}
 	
+	public BombersDispatcher getDispatcher() { return f_dispatcher; }
+	
 	
 }

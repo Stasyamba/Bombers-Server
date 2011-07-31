@@ -23,11 +23,19 @@ public class PricelistManager {
 	
 	public static final int C_UnknownItem = -1;
 	
+	public static final int C_ResourceTypeGold = 1;
+	public static final int C_ResourceTypeCrystal = 2;
+	public static final int C_ResourceTypeAdamantium = 4;
+	public static final int C_ResourceTypeAntimatter = 8;
+	public static final int C_ResourceTypeEnergy = 16;
+	
 	//Nested types
 	
 	private class ItemCost
 	{
 		//Fields
+		
+		private int f_itemId;
 		
 		private int f_gold;
 		private int f_crystal;
@@ -39,7 +47,23 @@ public class PricelistManager {
 		
 		//Constructors
 		
-		public ItemCost(int gold, int crystal, int adamantium, int antimatter, int stack, int level, boolean specialOffer)
+		protected ItemCost(Element itemElement) {
+			f_gold = Integer.parseInt(itemElement.getAttribute("gold"));
+			f_gold = f_gold > 0 ? f_gold : Integer.MAX_VALUE;
+			f_crystal = Integer.parseInt(itemElement.getAttribute("crystal"));
+			f_crystal = f_crystal > 0 ? f_crystal : Integer.MAX_VALUE;
+			f_adamantium = Integer.parseInt(itemElement.getAttribute("adamantium"));
+			f_adamantium = f_adamantium > 0 ? f_adamantium : Integer.MAX_VALUE;
+			f_antimatter = Integer.parseInt(itemElement.getAttribute("antimatter"));
+			f_antimatter = f_antimatter > 0 ? f_antimatter : Integer.MAX_VALUE;
+			f_stack = Integer.parseInt(itemElement.getAttribute("stack"));
+			f_level = Integer.parseInt(itemElement.getAttribute("level"));
+			f_itemId = Integer.parseInt(itemElement.getAttribute("itemId"));
+			f_specialOffer = itemElement.getAttribute("s") == "true";
+		}
+		
+		protected ItemCost(
+				int id, int gold, int crystal, int adamantium, int antimatter, int stack, int level, boolean specialOffer)
 		{
 			f_gold = gold;
 			f_crystal = crystal;
@@ -52,6 +76,7 @@ public class PricelistManager {
 		
 		//Methods
 		
+		public int getId() { return f_itemId; }
 		public int getGold() { return f_gold; }
 		public int getCrystal() { return f_crystal; }
 		public int getAdamantium() { return f_adamantium; }
@@ -60,6 +85,19 @@ public class PricelistManager {
 		public int getLevel() { return f_level; }
 		public boolean getSpecialOffer() { return f_specialOffer; }
 		
+		public ItemCost getItemCostInSpecifiedResource(int resourceType) {
+			if ((resourceType & C_ResourceTypeGold) > 0) {
+				return new ItemCost(f_itemId, f_gold, 0, 0, 0, f_stack, f_level, f_specialOffer);
+			} else if ((resourceType & C_ResourceTypeCrystal) > 0) {
+				return new ItemCost(f_itemId, 0, f_crystal, 0, 0, f_stack, f_level, f_specialOffer);
+			} else if ((resourceType & C_ResourceTypeAdamantium) > 0) {
+				return new ItemCost(f_itemId, 0, 0, f_adamantium, 0, f_stack, f_level, f_specialOffer);
+			} else if ((resourceType & C_ResourceTypeAntimatter) > 0) {
+				return new ItemCost(f_itemId, 0, 0, 0, f_antimatter, f_stack, f_level, f_specialOffer);
+			} else {
+				return null;
+			}
+		}
 		
 	}
 	
@@ -114,87 +152,6 @@ public class PricelistManager {
 			return item;
 		}
 			
-	}
-	
-	public class Reward {
-		
-		//Constructor
-		
-		protected Reward(Element rewardElement) {
-			String resourcesRewardString = rewardElement.getAttribute("resources");
-			if (!resourcesRewardString.isEmpty()) {
-				String[] r = resourcesRewardString.split(",");
-				f_goldReward = Integer.parseInt(r[0]);
-				f_crystalReward = Integer.parseInt(r[1]);
-				f_adamantiumReward = Integer.parseInt(r[2]);
-				f_antimatterReward = Integer.parseInt(r[3]);
-				f_energyReward = Integer.parseInt(r[4]);
-			}
-			String experienceRewardString = rewardElement.getAttribute("exp");
-			if (!experienceRewardString.isEmpty()) {
-				f_experienceReward = Integer.parseInt(experienceRewardString);
-			}
-			f_itemsReward = new HashMap<Integer, Integer>();
-			String itemsRewardString = rewardElement.getAttribute("items");
-			String itemsCountsString = rewardElement.getAttribute("itemsCounts");
-			if (!itemsRewardString.isEmpty() && itemsCountsString.isEmpty()) {
-				String[] r = itemsRewardString.split(",");
-				for (int i = 0; i < r.length; ++i) {
-					f_itemsReward.put(Integer.parseInt(r[i]), 1);
-				}
-			}
-			else if (!itemsRewardString.isEmpty() && !itemsCountsString.isEmpty()) {
-				String[] r = itemsRewardString.split(",");
-				String[] c = itemsCountsString.split(",");
-				for (int i = 0; i < r.length; ++i) {
-					f_itemsReward.put(Integer.parseInt(r[i]), Integer.parseInt(c[i]));
-				}
-			}
-		}
-		
-		//Fields
-		
-		private int f_goldReward;
-		private int f_crystalReward;
-		private int f_adamantiumReward;
-		private int f_antimatterReward;
-		private int f_energyReward;
-		
-		private int f_experienceReward;
-		
-		private Map<Integer, Integer> f_itemsReward;
-		
-		//Methods
-		
-		public int getGoldReward() { return f_goldReward; }
-		public int getCrystalReward() { return f_crystalReward; }
-		public int getAdamantiumReward() { return f_adamantiumReward; }
-		public int getAntimatterReward() { return f_antimatterReward; }
-		public int getEnergyReward() { return f_energyReward; }
-		
-		public int getExperienceReward() { return f_experienceReward; }
-		
-		public Map<Integer, Integer> getItemsReward() { return f_itemsReward; }
-		
-		public SFSObject toSFSObject() {
-			SFSObject r = new SFSObject();
-			r.putInt("R0", f_goldReward);
-			r.putInt("R1", f_crystalReward);
-			r.putInt("R2", f_adamantiumReward);
-			r.putInt("R3", f_antimatterReward);
-			r.putInt("R4", f_energyReward);
-			r.putInt("Exp", f_experienceReward);
-			SFSArray items = new SFSArray();
-			for (int item : f_itemsReward.keySet()) {
-				SFSObject it = new SFSObject();
-				it.putInt("Id", item);
-				it.putInt("C", f_itemsReward.get(item));
-				items.addSFSObject(it);
-			}
-			r.putSFSArray("Items", items);
-			return r;
-		}
-		
 	}
 	
 	public class Mission {
@@ -317,6 +274,8 @@ public class PricelistManager {
 	//Constants
 	
 	private static final String PricelistPath = "/usr/local/nginx/html/main/bombers/pricelist/pricelist.xml";
+	
+	//Static methods
 	
 	//Fields
 	
@@ -498,15 +457,8 @@ public class PricelistManager {
 		nl = itemsElement.getElementsByTagName("itemPrice");
 		for (int i = 0; i < nl.getLength(); ++i) {
 			Element itemElement = (Element)nl.item(i);
-			int gold = Integer.parseInt(itemElement.getAttribute("gold"));
-			int crystal = Integer.parseInt(itemElement.getAttribute("crystal"));
-			int adamantium = Integer.parseInt(itemElement.getAttribute("adamantium"));
-			int antimatter = Integer.parseInt(itemElement.getAttribute("antimatter"));
-			int stack = Integer.parseInt(itemElement.getAttribute("stack"));
-			int level = Integer.parseInt(itemElement.getAttribute("level"));
-			int itemId = Integer.parseInt(itemElement.getAttribute("itemId"));
-			boolean s = itemElement.getAttribute("itemId") == "true";
-			f_items.put(itemId, new ItemCost(gold, crystal, adamantium, antimatter, stack, level, s));
+			ItemCost itemCost = new ItemCost(itemElement); 
+			f_items.put(itemCost.getId(), itemCost);
 		}
 	}
 	
@@ -683,9 +635,13 @@ public class PricelistManager {
 		return Integer.MAX_VALUE;
 	}
 	
-	public boolean canBuyItem(int itemId, PlayerProfile profile) {
+	public boolean canBuyItem(int itemId, PlayerProfile profile, int resourceType) {
 		ItemCost itemCost = f_items.get(itemId);
+		itemCost = itemCost.getItemCostInSpecifiedResource(resourceType);
+		
 		if (itemCost == null) return false;
+		
+		
 		return (profile.getGold() >= itemCost.getGold() &&
 				profile.getCrystal() >= itemCost.getCrystal() &&
 				profile.getAdamantium() >= itemCost.getAdamantium() &&
@@ -694,9 +650,12 @@ public class PricelistManager {
 			);
 	}
 	
-	public int withdrawResourcesAndBuyItem(int itemId, PlayerProfile profile) {
+	public int withdrawResourcesAndBuyItem(int itemId, PlayerProfile profile, int resourceType) {
 		ItemCost itemCost = f_items.get(itemId);
+		itemCost = itemCost.getItemCostInSpecifiedResource(resourceType);
+		
 		if (itemCost == null) return 0;
+		
 		profile.addGold(-itemCost.getGold());
 		profile.addCrystal(-itemCost.getCrystal());
 		profile.addAdamantium(-itemCost.getAdamantium());
@@ -837,6 +796,17 @@ public class PricelistManager {
 				sfsM.putSFSObject("Bronze", m.getBronzeReward().toSFSObject());
 				sfsM.putSFSObject("Silver", m.getSilverReward().toSFSObject());
 				sfsM.putSFSObject("Gold", m.getGoldReward().toSFSObject());
+				
+				if (m.getId().equals("q00_00")) {
+					SFSObject champion = new SFSObject();
+					champion.putInt("Time", 100);
+					champion.putUtfString("Login", "36018");
+					champion.putUtfString("PhotoUrl", "http://cs10221.vkontakte.ru/u36018/a_2e8942c4.jpg");
+					champion.putInt("MedalType", 4);
+					sfsM.putSFSObject("Champion", champion);
+				}
+				
+				
 				missions.addSFSObject(sfsM);
 			}
 			f_sfsObject.putSFSArray("Missions", missions);

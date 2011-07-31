@@ -33,7 +33,7 @@ public class BombersGame extends SFSExtension {
 	
 	public final int C_DeathWallAppearsSince = 90 * 1000;
 	
-	public final int C_GameCostInEnergy = 5;
+	public final int C_GameCostInEnergy = 3;
 	
 	//Fields
 	
@@ -170,6 +170,7 @@ public class BombersGame extends SFSExtension {
 			userInfo.putInt("Experience", profile.getValue().getExperience());
 			userInfo.putUtfString("Nick", profile.getValue().getNick());
 			userInfo.putUtfString("Photo", profile.getValue().getPhoto());
+			userInfo.putSFSArray("CustomParameters", profile.getValue().getCustomParametersData());
 			userInfo.putBool("IsReady", f_gameProfiles.containsKey(profile.getKey()));
 			userInfo.putInt("Slot", getSlot(profile.getKey().getName()));
 			usersInfo.addSFSObject(userInfo);
@@ -634,38 +635,6 @@ public class BombersGame extends SFSExtension {
 	}
 	
 	//Weapons & dynamic objects system
-	
-	@Deprecated
-	public void destroyWallAt(final int x, final int y) {
-		if (f_gameField.getObjectTypeAt(x, y) == DynamicGameMap.ObjectType.OUT || 
-			f_gameField.getObjectTypeAt(x, y) == DynamicGameMap.ObjectType.EMPTY ||
-			f_gameField.getObjectTypeAt(x, y) == DynamicGameMap.ObjectType.DEATH_WALL) {
-			return;
-		}
-			
-		if (f_gameField.getDynamicObject(x, y) == null) {
-			f_gameField.setDynamicObject(x, y, new DynamicObject(this, false, false) {
-				@Override
-				public GameEvent getActivateEvent() {
-					return null;
-				}
-			});
-		}
-		else {
-			return;
-		}
-		
-		addDelayedGameEvent(new GameEvent(this) {
-			@Override
-			protected void ApplyOnGame(BombersGame game, DynamicGameMap map) {
-				map.removeDynamicObject(x, y);
-				if (map.getObjectTypeAt(x, y) == DynamicGameMap.ObjectType.WALL) {
-					f_dynamicObjectManager.possiblyAddRandomBonus(x, y);
-				}
-				map.setObjectTypeAt(x, y, DynamicGameMap.ObjectType.EMPTY);
-			}
-		}, 50);
-	}
 	
 	public void activateWeapon(User user, int weaponId) {
 		PlayerGameProfile profile = getGameProfile(user);

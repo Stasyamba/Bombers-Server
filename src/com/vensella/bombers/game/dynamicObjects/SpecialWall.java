@@ -5,18 +5,19 @@ import com.vensella.bombers.dispatcher.GameEvent;
 import com.vensella.bombers.game.BombersGame;
 import com.vensella.bombers.game.DynamicObject;
 import com.vensella.bombers.game.DynamicObjectManager;
-import com.vensella.bombers.game.PlayerGameProfile;
 import com.vensella.bombers.game.WeaponActivateEvent;
 import com.vensella.bombers.game.mapObjects.DynamicGameMap;
 
-public class BombCountBonus extends DynamicObject {
+public class SpecialWall extends DynamicObject {
 
 	//Constructor
 	
-	public BombCountBonus(BombersGame game, int x, int y) {
-		super(game, true, true);
+	public SpecialWall(BombersGame game, int x, int y, int destroysBy, int life) {
+		super(game, false, false, true, true, true);
 		f_x = x;
 		f_y = y;
+		f_destroysBy = destroysBy;
+		f_life = life;
 	}
 	
 	//Fields
@@ -24,33 +25,49 @@ public class BombCountBonus extends DynamicObject {
 	private int f_x;
 	private int f_y;
 	
+	private int f_destroysBy;
+	private int f_life;
+	
+	private long f_lastDamaged;
+	
 	//Methods
+	
+	public int getDestroysBy() { return f_destroysBy; }
+	public int getLife() { return f_life; }
 	
 	@Override
 	public GameEvent getActivateEvent() {
+		final int life = f_life;
 		return new GameEvent(getGame()) {
 			@Override
-			protected void ApplyOnGame(BombersGame game, DynamicGameMap map) {
-				PlayerGameProfile profile = game.getGameProfile(getOwner());
-				profile.releaseBomb();
-				setActivated(true);
-				map.removeDynamicObject(f_x, f_y);
-				
+			protected void ApplyOnGame(BombersGame game, DynamicGameMap map) {				
 				SFSObject params = new SFSObject();
-				params.putUtfString("game.DOAct.f.userId", getOwner().getName());
-				params.putInt("game.DOAct.f.type", DynamicObjectManager.BONUS_ADD_BOMB);
+				params.putInt("game.DOAct.f.type", DynamicObjectManager.SPECIAL_WALL);
+				params.putInt("game.DOAct.f.lifeLeft", life);
 				params.putInt("game.DOAct.f.x", f_x);
 				params.putInt("game.DOAct.f.y", f_y);
-				params.putBool("game.DOAct.f.isRemoved", true);
+				params.putBool("game.DOAct.f.isRemoved", life <= 0);
 				getGame().send("game.DOAct", params, getGame().getParentRoom().getPlayersList());	
 			}
 		};
 	}
-
+	
 	@Override
 	public void destoyEvent(WeaponActivateEvent baseEvent, BombersGame game, DynamicGameMap map, int weaponId) {
-		
+		if (weaponId != f_destroysBy) {
+			return;
+		}
+		long time = System.currentTimeMillis();
+		if (time - f_lastDamaged > 1000) {
+			f_lastDamaged = time;
+			f_life -= 1;
+			if (f_life <= 0) {
+				map.removeDynamicObject(f_x, f_y);
+			}
+			game.addGameEvent(getActivateEvent());
+		}
 	}
 	
+
 
 }

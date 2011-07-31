@@ -36,6 +36,18 @@ public class InterfaceManager {
 		f_dispatcher = dispatcher;
 	}
 	
+	//Common methods
+	
+	public void setCustomParameter(User user, int key, int value) {
+		PlayerProfile profile = f_dispatcher.getUserProfile(user);
+		profile.setCustomParameter(key, value);
+	}
+	
+	public void setCustomParameter(User user, int key, String value) {
+		PlayerProfile profile = f_dispatcher.getUserProfile(user);
+		profile.setCustomParameter(key, value);
+	}
+	
 	//Methods for training
 	
 	public void setTrainingStatus(User user, int status) {
@@ -64,11 +76,11 @@ public class InterfaceManager {
 		profile.removeItem(itemId);
 	}
 	
-	public void buyItem(User user, int itemId)
+	public void buyItem(User user, int itemId, int resourceType)
 	{
 		PlayerProfile profile = f_dispatcher.getUserProfile(user);
-		if (f_dispatcher.getPricelistManager().canBuyItem(itemId, profile)) {
-			int stack = f_dispatcher.getPricelistManager().withdrawResourcesAndBuyItem(itemId, profile);
+		if (f_dispatcher.getPricelistManager().canBuyItem(itemId, profile, resourceType)) {
+			int stack = f_dispatcher.getPricelistManager().withdrawResourcesAndBuyItem(itemId, profile, resourceType);
 			
 			SFSObject params = new SFSObject();
 			params.putBool("interface.buyItem.result.fields.status", true);
@@ -258,7 +270,15 @@ public class InterfaceManager {
 		f_dispatcher.send("interface.missions.start.result", params, user); 
 	}
 	
-	public void submitMissionResult(User user, int token, String missionId, boolean isBronze, boolean isSilver, boolean isGold) {
+	public void submitMissionResult(
+			User user, 
+			int token, 
+			String missionId, 
+			boolean isBronze, 
+			boolean isSilver, 
+			boolean isGold,
+			int missionTime) 
+	{
 		PlayerProfile profile = f_dispatcher.getUserProfile(user);
 		
 		//f_dispatcher
@@ -282,8 +302,11 @@ public class InterfaceManager {
 			boolean medalTaken = false;
 			
 			SFSObject params = new SFSObject();
-			params.putBool("interface.missions.submitResult.result.f.status", true);			
+			params.putBool("interface.missions.submitResult.result.f.status", true);	
+			
+			int medalType = 0;
 			if (isBronze && !profile.hasMedal(missionId, C_BronzeMedal)) {
+				medalType = C_BronzeMedal;
 				profile.setMedal(missionId, C_BronzeMedal);
 				f_dispatcher.getPricelistManager().getReward(profile, mission.getBronzeReward());
 				medalTaken = true;
@@ -295,6 +318,7 @@ public class InterfaceManager {
 				//params.putSFSObject("interface.missions.submitResult.result.f.bronze", SFSObject.newInstance());
 			}
 			if (isSilver && !profile.hasMedal(missionId, C_SilverMedal)) {
+				medalType = C_SilverMedal;
 				profile.setMedal(missionId, C_SilverMedal);
 				f_dispatcher.getPricelistManager().getReward(profile, mission.getSilverReward());
 				medalTaken = true;
@@ -306,6 +330,7 @@ public class InterfaceManager {
 				//params.putSFSObject("interface.missions.submitResult.result.f.silver", SFSObject.newInstance());
 			}
 			if (isGold && !profile.hasMedal(missionId, C_GoldMedal)) {
+				medalType = C_GoldMedal;
 				profile.setMedal(missionId, C_GoldMedal);
 				f_dispatcher.getPricelistManager().getReward(profile, mission.getGoldReward());
 				medalTaken = true;
@@ -316,7 +341,11 @@ public class InterfaceManager {
 			} else {
 				//params.putSFSObject("interface.missions.submitResult.result.f.gold", SFSObject.newInstance());
 			}
-			if (medalTaken) {
+			
+			boolean timeImproved = profile.updateMissionTime(missionId, missionTime);
+			
+			if (medalTaken || timeImproved) {
+				f_dispatcher.getRecordsManager().sumbitMissionResult(profile, missionId, missionTime, medalType);
 				f_dispatcher.getDbManager().ScheduleUpdateQuery(
 						DBQueryManager.SqlUpdatePlayerMedals, new Object[] { 
 						profile.getMedalsData().toJson(), 

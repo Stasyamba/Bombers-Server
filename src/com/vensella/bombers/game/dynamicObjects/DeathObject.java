@@ -4,6 +4,7 @@ import com.vensella.bombers.dispatcher.GameEvent;
 import com.vensella.bombers.game.BombersGame;
 import com.vensella.bombers.game.DynamicObject;
 import com.vensella.bombers.game.PlayerGameProfile;
+import com.vensella.bombers.game.WeaponActivateEvent;
 import com.vensella.bombers.game.mapObjects.DynamicGameMap;
 
 public class DeathObject extends DynamicObject {
@@ -27,6 +28,11 @@ public class DeathObject extends DynamicObject {
 				game.damagePlayer(profile.getUser(), profile.getHealth(), 0, true);	
 			}
 		};
+	}
+	
+	@Override
+	public void destoyEvent(WeaponActivateEvent baseEvent, BombersGame game, DynamicGameMap map, int weaponId) {
+		
 	}
 
 

@@ -2,23 +2,25 @@ package com.vensella.bombers.game.mapObjects;
 
 import java.io.IOException;
 
+import java.util.*;
+
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 
+import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
 import com.smartfoxserver.v2.entities.data.SFSArray;
 import com.smartfoxserver.v2.entities.data.SFSObject;
-import com.vensella.bombers.dispatcher.MapManager;
-import com.vensella.bombers.game.BombersGame;
-import com.vensella.bombers.game.DamageObject;
-import com.vensella.bombers.game.DynamicObject;
-import com.vensella.bombers.game.DynamicObjectManager;
-import com.vensella.bombers.game.PlayerGameProfile;
+
+import com.vensella.bombers.dispatcher.*;
+import com.vensella.bombers.game.*;
+import com.vensella.bombers.game.dynamicObjects.*;
 
 public class DynamicGameMap {
 	
@@ -33,10 +35,80 @@ public class DynamicGameMap {
 		OUT
 	}
 	
+	protected class DynamicObjectCreationContainer 
+	{
+		
+		//Static
+		
+		//Constructors
+		
+		protected DynamicObjectCreationContainer(Element element) {
+			f_isComplex = element.getAttribute("isComplex").equals("true");
+			f_x = Integer.parseInt(element.getAttribute("x"));
+			f_y = Integer.parseInt(element.getAttribute("y"));
+			if (f_isComplex) {
+				f_nestedContainers = new ArrayList<DynamicObjectCreationContainer>();
+				NodeList nl = element.getElementsByTagName("nestedObject");
+				for (int i = 0; i < nl.getLength(); ++i) {
+					Element nestedObjectElement = (Element)nl.item(i);
+					f_nestedContainers.add(new DynamicObjectCreationContainer(f_x, f_y, nestedObjectElement));
+				}
+			} else {
+				m_initFields(element);
+			}
+		}
+		
+		protected DynamicObjectCreationContainer(int x, int y, Element element) {
+			f_x = x;
+			f_y = y;
+			m_initFields(element);
+		}
+		
+		private void m_initFields(Element element) {
+			f_type = Integer.parseInt(element.getAttribute("type"));
+			String chanceString = element.getAttribute("chance");
+			if (chanceString.isEmpty() == false) {
+				f_chance = Integer.parseInt(chanceString);
+			}
+			f_attribues = new HashMap<String, String>();
+			NamedNodeMap attrs = element.getAttributes();
+			for (int i = 0; i < attrs.getLength(); ++i) {
+				Attr attr = (Attr)attrs.item(i);
+				f_attribues.put(attr.getName(), attr.getValue());
+			}
+			
+		}
+		
+		//Fields
+		
+		private boolean f_isComplex;
+		private ArrayList<DynamicObjectCreationContainer> f_nestedContainers;
+		
+		private int f_type;
+		private int f_x;
+		private int f_y;
+		
+		private Map<String, String> f_attribues;
+		
+		private int f_chance = 10000;
+		
+		//Methods
+		
+		public boolean getIsComplex() { return f_isComplex; }
+		public ArrayList<DynamicObjectCreationContainer> getNestedContainers() { return f_nestedContainers; }
+		
+		public int getType() { return f_type; }
+		public int getX() { return f_x; }
+		public int getY() { return f_y; }
+		
+		public int getChance() { return f_chance; }
+		
+		public Map<String, String> getAttributes() { return f_attribues; }
+		
+	}
+	
+	
 	//Constants
-	
-	
-	
 	
 	public static final int DirectionStop = 0;
 	public static final int DirectionLeft = 1;
@@ -65,9 +137,12 @@ public class DynamicGameMap {
 	
 	private int[] f_mapObjects;
 	
+	private ArrayList<DynamicObjectCreationContainer> f_mapObjectsPrototypes;
+	
 	private ObjectType[][] f_map;
 	
 	private BombersGame f_game;
+	
 	
 	//Constructors
 	
@@ -142,7 +217,18 @@ public class DynamicGameMap {
 		f_damageObjects = new DamageObject[f_maxX * f_maxY];
 		
 		f_mapObjects = new int[f_maxX * f_maxY];
+
 		//TODO: Parse static map objects (bonuses, items, etc...)
+		
+		f_mapObjectsPrototypes = new ArrayList<DynamicObjectCreationContainer>();
+		nl = rootElement.getElementsByTagName("objects");
+		NodeList objectsNodeList = ((Element)nl.item(0)).getElementsByTagName("object");
+		//manager.getDispatcher().trace("Objects count = " + objectsNodeList.getLength());
+		for (int i = 0; i < objectsNodeList.getLength(); ++i)
+		{
+			Element element = (Element)objectsNodeList.item(i);	
+			f_mapObjectsPrototypes.add(new DynamicObjectCreationContainer(element));
+		}
 	}
 	
 	public DynamicGameMap(BombersGame game, DynamicGameMap prototype) {
@@ -175,16 +261,57 @@ public class DynamicGameMap {
 			f_mapObjects[i] = prototype.f_mapObjects[i];
 		}
 		
+		f_mapObjectsPrototypes = prototype.f_mapObjectsPrototypes;
+		
 		m_initRandomBonuses();
+		m_initConfiguredBonuses();
 	}
 	
 	//Initialization methods
 	
+	
+	
 	protected void m_initRandomBonuses() {
+		
+		//Standard bonuses
+		
 		int countAddBomb = 8;
 		int countAddPower = 8;
 		int countAddSpeed = 8;
 		int countAddHealth = 4;
+		
+		//Resource bonuses
+		
+		int countGold1 = 0;
+		int countGold2 = 0;
+		int countGold5 = 0;
+		
+		int totalGold = 0;
+		int maxGold = 10;
+		while (totalGold < maxGold) {
+			double r = Math.random();
+			if (r < 0.2) {
+				if (totalGold + 5 < maxGold) {
+					countGold5++;
+					totalGold += 5;
+				}
+			} else if (r < 0.55) {
+				if (totalGold + 2 < maxGold) {
+					countGold2++;
+					totalGold += 2;
+				}				
+			} else {
+				countGold1++;
+				totalGold += 1;
+			}
+		}
+		
+		//Item bonuses
+		
+		int countItem = 0;
+		//int itemId = WeaponsManager.WEAPON_BOMB_DYNAMITE;
+		
+		//Bonuses allocation
 		
 		int wallBlocks = getWallBlocksCount();
 		for (int x = 0; x < f_maxX; ++x) {
@@ -197,39 +324,103 @@ public class DynamicGameMap {
 					if (p < C) {
 						DynamicObject bonus = null;
 						int bonusType;
-						double r1 = Math.random() * countAddBomb;
-						double r2 = Math.random() * countAddPower;
-						double r3 = Math.random() * countAddSpeed;
-						double r4 = Math.random() * countAddHealth;
+						double[] possibilites = { 
+								Math.random() * countAddBomb,
+								Math.random() * countAddPower,
+								Math.random() * countAddSpeed,
+								Math.random() * countAddHealth,
+								Math.random() * countGold5,
+								Math.random() * countGold2,
+								Math.random() * countGold1,
+								Math.random() * countItem
+						};
+						int maxIndex = 0;
+						double maxRate = Double.MIN_VALUE;
+						for (int i = 0; i < possibilites.length; ++i) {
+							if (possibilites[i] > maxRate) {
+								maxRate = possibilites[i];
+								maxIndex = i;
+							}
+						}
 						
-						if (r1 > r2 && r1 > r3 && r1 > r4) {
+						if (maxIndex == 0) {
 							bonusType = DynamicObjectManager.BONUS_ADD_BOMB;
 							f_mapObjects[f_maxX * y + x] = bonusType;
 							bonus = f_game.getDynamicObjectManager().createDynamicObject(bonusType, x, y);
 							countAddBomb--;
 						}
-						else if (r2 > r1 && r2 > r3 && r2 > r4)	{
+						else if (maxIndex == 1)	{
 							bonusType = DynamicObjectManager.BONUS_ADD_BOMB_POWER;
 							f_mapObjects[f_maxX * y + x] = bonusType;
 							bonus = f_game.getDynamicObjectManager().createDynamicObject(bonusType, x, y);
 							countAddPower--;
 						}
-						else if (r3 > r1 && r3 > r2 && r3 > r4)	{
+						else if (maxIndex == 2)	{
 							bonusType = DynamicObjectManager.BONUS_ADD_SPEED;
 							f_mapObjects[f_maxX * y + x] = bonusType;
 							bonus = f_game.getDynamicObjectManager().createDynamicObject(bonusType, x, y);
 							countAddSpeed--;
 						}
-						else {
+						else if (maxIndex == 3) {
 							bonusType = DynamicObjectManager.BONUS_ADD_HEAL;
 							f_mapObjects[f_maxX * y + x] = bonusType;
 							bonus = f_game.getDynamicObjectManager().createDynamicObject(bonusType, x, y);
 							countAddHealth--;
 						}
+						else if (maxIndex == 4) {
+							bonusType = DynamicObjectManager.BONUS_ADD_RESOURCE;
+							f_mapObjects[f_maxX * y + x] = bonusType;
+							bonus = new ResourceBonus(f_game, x, y, PricelistManager.C_ResourceTypeGold, 5);
+							countGold5--;
+						}
+						else if (maxIndex == 5) {
+							bonusType = DynamicObjectManager.BONUS_ADD_RESOURCE;
+							f_mapObjects[f_maxX * y + x] = bonusType;
+							bonus = new ResourceBonus(f_game, x, y, PricelistManager.C_ResourceTypeGold, 2);
+							countGold2--;
+						}
+						else if (maxIndex == 6) {
+							bonusType = DynamicObjectManager.BONUS_ADD_RESOURCE;
+							f_mapObjects[f_maxX * y + x] = bonusType;
+							bonus = new ResourceBonus(f_game, x, y, PricelistManager.C_ResourceTypeGold, 1);
+							countGold1--;
+						}
+						else if (maxIndex == 7) {
+							//bonusType = DynamicObjectManager.BONUS_ADD_ITEM;
+							//f_mapObjects[f_maxX * y + x] = bonusType;
+							//bonus = f_game.getDynamicObjectManager().createDynamicObject(bonusType, x, y);
+							countItem--;
+						}
 						setDynamicObject(x, y, bonus);
 					}
 				}
 			}
+		}
+	}
+	
+	protected void m_initConfiguredBonuses() {
+		for (DynamicObjectCreationContainer docc : f_mapObjectsPrototypes) {
+			if (docc.getIsComplex()) {
+				for (DynamicObjectCreationContainer nestedDocc : docc.getNestedContainers()) {
+					m_possiblyCreateDynamicObjectFromPrototype(nestedDocc);
+				}
+			} else {
+				m_possiblyCreateDynamicObjectFromPrototype(docc);
+			}
+		}
+	}
+	
+	private void m_possiblyCreateDynamicObjectFromPrototype(DynamicObjectCreationContainer docc) {
+		int r = (int)(Math.random() * 10000);
+		if (r < docc.getChance()) {
+			DynamicObject dobj = getGame().getDynamicObjectManager().createDynamicObject(
+						docc.getType(), 
+						docc.getX(), 
+						docc.getY(), 
+						docc.getAttributes()
+					);
+			setDynamicObject(docc.getX(), docc.getY(), dobj);
+			f_mapObjects[docc.getY() * f_maxX + docc.getX()] = docc.getType();
 		}
 	}
 	
@@ -343,6 +534,25 @@ public class DynamicGameMap {
 				bonus.putInt("X", i % f_maxX);
 				bonus.putInt("Y", i / f_maxX);
 				bonus.putInt("T", f_mapObjects[i]);
+				
+				//TODO: Rewrite very BAD code
+				DynamicObject dobj = getDynamicObject(i % f_maxX, i / f_maxX);
+				if (dobj != null) {
+					if (dobj instanceof ResourceBonus) {
+						ResourceBonus rb = (ResourceBonus)dobj;
+						bonus.putInt("P0", rb.getResourceType());
+						bonus.putInt("P1", rb.getCount());
+					} else if (dobj instanceof ItemBonus) {
+						ItemBonus rb = (ItemBonus)dobj;
+						bonus.putInt("P0", rb.getItemType());
+						bonus.putInt("P1", rb.getCount());						 
+					} else if (dobj instanceof SpecialWall) {
+						SpecialWall rb = (SpecialWall)dobj;
+						bonus.putInt("P0", rb.getDestroysBy());
+						bonus.putInt("P1", rb.getLife());						
+					}
+				}
+				
 				bonuses.addSFSObject(bonus);
 			}
 		}
@@ -794,7 +1004,9 @@ public class DynamicGameMap {
 		if (dyn != null && dyn.getCanBeActivatedByPlayer()) {
 			dyn.setOwner(profile.getUser());
 			f_game.addGameEvent(dyn.getActivateEvent());
-			removeDynamicObject(x, y);
+			if (!dyn.getStaysAfterActivationByPlayer()) {
+				removeDynamicObject(x, y);
+			}
 		}			
 	}
 }

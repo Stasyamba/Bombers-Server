@@ -5,6 +5,7 @@ import com.vensella.bombers.dispatcher.GameEvent;
 import com.vensella.bombers.game.BombersGame;
 import com.vensella.bombers.game.DynamicObject;
 import com.vensella.bombers.game.PlayerGameProfile;
+import com.vensella.bombers.game.WeaponActivateEvent;
 import com.vensella.bombers.game.WeaponsManager;
 import com.vensella.bombers.game.mapObjects.DynamicGameMap;
 
@@ -40,7 +41,7 @@ public class NormalMine extends DynamicObject {
 					PlayerGameProfile player = game.getGameProfile(getOwner());
 					if (player.getDamageTime() + PlayerGameProfile.C_ImmortalTime < time) {
 						player.setDamageTime(time);
-						game.damagePlayer(getOwner(), PlayerGameProfile.C_HealthQuantum, 0, false);
+						game.damagePlayer(getOwner(), 3 * PlayerGameProfile.C_HealthQuantum, 0, false);
 					}
 				}
 				params.putInt("game.DOAct.f.type", WeaponsManager.WEAPON_MINE_NORMAL);
@@ -50,6 +51,12 @@ public class NormalMine extends DynamicObject {
 				getGame().send("game.DOAct", params, getGame().getParentRoom().getPlayersList());	
 			}
 		};
+	}
+	
+	@Override
+	public void destoyEvent(WeaponActivateEvent baseEvent, BombersGame game, DynamicGameMap map, int weaponId) {
+		baseEvent.beginDestroyingDynamicObject(x, y);
+		map.removeDynamicObject(x, y);
 	}
 
 }

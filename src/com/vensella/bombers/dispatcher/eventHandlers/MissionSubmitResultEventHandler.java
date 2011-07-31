@@ -18,8 +18,9 @@ public class MissionSubmitResultEventHandler extends BaseClientRequestHandler {
 		boolean isBronze = params.getBool("interface.missions.submitResult.f.isBronze");
 		boolean isSilver = params.getBool("interface.missions.submitResult.f.isSilver");
 		boolean isGold = params.getBool("interface.missions.submitResult.f.isGold");
+		int missionTime = params.getInt("interface.missions.submitResult.f.result");
 		
-		dispatcher.getInterfaceManager().submitMissionResult(user, token, missionId, isBronze, isSilver, isGold);
+		dispatcher.getInterfaceManager().submitMissionResult(user, token, missionId, isBronze, isSilver, isGold, missionTime);
 	}
 
 }
