@@ -71,6 +71,10 @@ public class DBQueryManager {
 			"where `Id` = ?";
 	public static final String SqlInsertPrizeFromWall = "insert into `PrizesFromWall` values (?, ?, ?)";
 	
+	
+	public static final String SqlSelectLastQuestRecords = "select * from `RecordsQuests` order by `SnapshotTime` desc limit 0, 1";
+	public static final String SqlInsertQuestRecords = "insert into `RecordsQuests` values (?, ?)";
+	
 	//Nested types
 	
 	private class QueuedQuery
@@ -162,6 +166,8 @@ public class DBQueryManager {
 							for (Object p : q.getParams()) {
 								if (p instanceof Integer) {
 									st.setInt(i++, (Integer)p);
+								} else if (p instanceof Long) {
+									st.setLong(i++, (Long)p);
 								} else {
 									st.setString(i++, p.toString());
 								}

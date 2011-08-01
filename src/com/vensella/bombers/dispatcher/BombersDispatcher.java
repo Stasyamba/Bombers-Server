@@ -54,6 +54,8 @@ public class BombersDispatcher extends SFSExtension {
 	
 	//Event model fields
 	
+	private Thread f_shutDownHook;
+	
 	private ScheduledThreadPoolExecutor f_delayedEventsExecutor;
 	
 	private Thread[] f_workingThreads;
@@ -140,6 +142,8 @@ public class BombersDispatcher extends SFSExtension {
 		addEventHandler(SFSEventType.USER_JOIN_ZONE, UserJoinZoneEventHandler.class);
 		addEventHandler(SFSEventType.USER_DISCONNECT, UserDisconnectEventHandler.class);
 		
+		//addEventHandler(SFSEventType., theClass)
+		
 		//Initialize custom request handlers
 		
 		addRequestHandler("ping", PingEventHandler.class);
@@ -172,19 +176,35 @@ public class BombersDispatcher extends SFSExtension {
 		addRequestHandler("admin.reloadMapManager", AdminReloadMapManagerEventHandler.class);
 		addRequestHandler("admin.reloadPricelistManager", AdminReloadPricelistManagerEventHandler.class);
 		
-		 		
+		f_shutDownHook = new Thread("Bombers shutdown hook") {
+			public void run() {
+				trace(ExtensionLogLevel.WARN, "Bombers zone dispatcher shutdown() begin");
+				//getParentZone().setActive(false);
+				//TODO: Inform users about server reset
+				//TODO: Disconnect all users to connect them after few seconds
+				//TODO: Free all resources (threads, timers, etc..)
+				
+				getRecordsManager().destroy();
+				
+				try {
+					Thread.sleep(2000);
+				} catch (InterruptedException e) {
+					trace(ExtensionLogLevel.WARN, "Bombers zone dispatcher shutdown() sleep interrupted");
+				}
+				
+				trace(ExtensionLogLevel.WARN, "Bombers zone dispatcher shutdown() end");				
+			}
+		};
+		Runtime.getRuntime().addShutdownHook(f_shutDownHook);
+		
 		trace(ExtensionLogLevel.WARN, "Bombers zone dispatcher init() end");
 	}
 
 	@Override
 	public void destroy()
 	{
-		//getParentZone().setActive(false);
-		//TODO: Inform users about server reset
-		//TODO: Disconnect all users to connect them after few seconds
-		//TODO: Free all resources (threads, timers, etc..)
+		Runtime.getRuntime().removeShutdownHook(f_shutDownHook);
 		super.destroy();
-		trace(ExtensionLogLevel.WARN, "Bombers zone dispatcher destroy()");
 	}
 	
 	//Special methods
@@ -395,6 +415,8 @@ public class BombersDispatcher extends SFSExtension {
 			trace(ExtensionLogLevel.WARN, params.toJson());
 			
 			params.putSFSObject("Pricelist", f_pricelistManager.toSFSObject());
+			params.putSFSArray("MissionRecords", f_recordsManager.getMissionRecordsData());
+			
 			send("interface.gameProfileLoaded", params, user);	
 		}
 	}

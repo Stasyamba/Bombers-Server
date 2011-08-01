@@ -344,6 +344,14 @@ public class InterfaceManager {
 			
 			boolean timeImproved = profile.updateMissionTime(missionId, missionTime);
 			
+			if (isGold) {
+				medalType = C_GoldMedal;
+			} else if (isSilver) {
+				medalType = C_SilverMedal;
+			} else if (isBronze) {
+				medalType = C_BronzeMedal;
+			}
+			
 			if (medalTaken || timeImproved) {
 				f_dispatcher.getRecordsManager().sumbitMissionResult(profile, missionId, missionTime, medalType);
 				f_dispatcher.getDbManager().ScheduleUpdateQuery(

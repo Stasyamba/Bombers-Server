@@ -790,22 +790,13 @@ public class PricelistManager {
 			SFSArray missions = new SFSArray();
 			for (Mission m : f_missions.values()) {
 				SFSObject sfsM = new SFSObject();
+				
 				sfsM.putUtfString("Id", m.getId());
 				sfsM.putInt("L", m.getLocation());
 				sfsM.putInt("E", m.getEnergyCost());
 				sfsM.putSFSObject("Bronze", m.getBronzeReward().toSFSObject());
 				sfsM.putSFSObject("Silver", m.getSilverReward().toSFSObject());
 				sfsM.putSFSObject("Gold", m.getGoldReward().toSFSObject());
-				
-				if (m.getId().equals("q00_00")) {
-					SFSObject champion = new SFSObject();
-					champion.putInt("Time", 100);
-					champion.putUtfString("Login", "36018");
-					champion.putUtfString("PhotoUrl", "http://cs10221.vkontakte.ru/u36018/a_2e8942c4.jpg");
-					champion.putInt("MedalType", 4);
-					sfsM.putSFSObject("Champion", champion);
-				}
-				
 				
 				missions.addSFSObject(sfsM);
 			}
