@@ -176,6 +176,8 @@ public class BombersDispatcher extends SFSExtension {
 		addRequestHandler("admin.reloadMapManager", AdminReloadMapManagerEventHandler.class);
 		addRequestHandler("admin.reloadPricelistManager", AdminReloadPricelistManagerEventHandler.class);
 		
+		//addRequestHandler("stat.setLoginSource", null);
+		
 		f_shutDownHook = new Thread("Bombers shutdown hook") {
 			public void run() {
 				trace(ExtensionLogLevel.WARN, "Bombers zone dispatcher shutdown() begin");
@@ -186,8 +188,31 @@ public class BombersDispatcher extends SFSExtension {
 				
 				getRecordsManager().destroy();
 				
+				//Save all profiles to DB
+				ArrayList<PlayerProfile> profiles = new ArrayList<PlayerProfile>();
+				f_profiles.keySet().retainAll(profiles);
+				for (PlayerProfile profile : profiles) {
+					Reward sessionReward = profile.getSessionReward();
+					if (sessionReward.isEmpty() == false) {
+						getDbManager().ScheduleUpdateQuery(
+								DBQueryManager.SqlAddPlayerResources, new Object[] {
+								sessionReward.getGoldReward(),
+								sessionReward.getCrystalReward(),
+								sessionReward.getAdamantiumReward(),
+								sessionReward.getAntimatterReward(),
+								sessionReward.getEnergyReward(),
+								profile.getId()
+							});
+						profile.removeSessionReward();
+					}
+					saveProfileToDb(profile);
+				}
+				
 				try {
-					Thread.sleep(2000);
+					do {
+						trace(ExtensionLogLevel.WARN, "Bombers zone dispatcher shutdown() waits for DB Queue to be empty");	
+						Thread.sleep(1000);
+					} while (getDbManager().getQueueSize() > 0);
 				} catch (InterruptedException e) {
 					trace(ExtensionLogLevel.WARN, "Bombers zone dispatcher shutdown() sleep interrupted");
 				}
@@ -594,7 +619,7 @@ public class BombersDispatcher extends SFSExtension {
 		settings.setExtension(extensionSettings);
 		settings.setName(gameName);
 		if (!createByUser)
-			settings.setAutoRemoveMode(SFSRoomRemoveMode.NEVER_REMOVE);
+			settings.setAutoRemoveMode(SFSRoomRemoveMode.WHEN_EMPTY);
 		else
 			settings.setAutoRemoveMode(SFSRoomRemoveMode.WHEN_EMPTY_AND_CREATOR_IS_GONE);
 		settings.setMaxUsers(4);

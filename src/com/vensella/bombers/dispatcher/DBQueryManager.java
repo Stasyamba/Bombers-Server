@@ -236,6 +236,8 @@ public class DBQueryManager {
 		f_queue.add(q);
 	}
 	
+	public int getQueueSize() { return f_queue.size(); }
+	
 	public void beginDestroy() {
 		SmartFoxServer.getInstance().getTaskScheduler().schedule(new Runnable() {
 			@Override
