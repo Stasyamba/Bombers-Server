@@ -1,12 +1,21 @@
 package com.vensella.bombers.dispatcher;
 
-import java.io.File;
-import java.io.FilenameFilter;
+
+
 import java.util.*;
+
 import java.util.concurrent.ConcurrentHashMap;
+
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.NodeList;
 
 import com.smartfoxserver.v2.entities.Room;
 import com.smartfoxserver.v2.extensions.ExtensionLogLevel;
+
 import com.vensella.bombers.game.BombersGame;
 import com.vensella.bombers.game.mapObjects.DynamicGameMap;
 
@@ -14,8 +23,9 @@ public class MapManager {
 	
 	//Constants
 	
-	private static final String MapFolder = "/usr/local/nginx/html/main/bombers/maps";
-	private static final String MapExtension = "xml";
+	//TODO: Load URL from ConfigurtionManager 
+	private static final String C_MapsUrl = "http://46.182.31.151/bombers/maps/";
+	private static final String C_MapList = "maps.xml";
 	
 //	private static final String BigObjectFolder = "/usr/local/nginx/html/main/bombers/objects";
 //	private static final String BigObjectExtension = "xml";
@@ -49,38 +59,48 @@ public class MapManager {
 	}
 	
 	private void initializeMapPool() {
-		File mapsDirectory = new File(MapFolder);
-		FilenameFilter mapFileFilter = new FilenameFilter() {
-			@Override
-			public boolean accept(File file, String name) {
-				return !name.startsWith(".") && !name.startsWith("~") && name.endsWith(MapExtension);
-			}
-		};		
-		File[] names = mapsDirectory.listFiles(mapFileFilter);
+		ArrayList<String> mapList = new ArrayList<String>();
 		
-		for (File file : names) {
+		f_dispatcher.trace(ExtensionLogLevel.WARN, "Download maps start");
+		try {
+			DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+			DocumentBuilder db = dbf.newDocumentBuilder();
+			Document doc = db.parse(C_MapsUrl + C_MapList);
+			Element mapsElement = doc.getDocumentElement();
+			NodeList nl = mapsElement.getElementsByTagName("map");
+			for (int i = 0; i < nl.getLength(); ++i)
+			{
+				mapList.add(((Element)nl.item(i)).getAttribute("name"));
+			}
+		}
+		catch (Exception ex) {
+			f_dispatcher.trace(ExtensionLogLevel.ERROR, "While load map list from remote URL");
+			f_dispatcher.trace(ExtensionLogLevel.ERROR, ex.toString());
+			f_dispatcher.trace(ExtensionLogLevel.ERROR, (Object[])ex.getStackTrace());				
+		}
+		
+		for (String mapName : mapList) {
 			try {
-				DynamicGameMap map = new DynamicGameMap(file.getPath(), this);
-				
+				DynamicGameMap map = new DynamicGameMap(C_MapsUrl + mapName, this);
 				f_dispatcher.trace(
-						ExtensionLogLevel.WARN, 
-						"Loaded map, map id = " + map.getMapId() + ", location = " + map.getLocationId()
-					);
-				
+					ExtensionLogLevel.WARN, 
+					"Loaded map, map id = " + map.getMapId() + ", location = " + map.getLocationId()
+				);
 				if (f_mapPool.containsKey(map.getLocationId())) {
 					f_mapPool.get(map.getLocationId()).add(map);
 				} else {
 					ArrayList<DynamicGameMap> a = new ArrayList<DynamicGameMap>();
 					a.add(map);
 					f_mapPool.put(map.getLocationId(), a);
-				}
-			} 
+				}				
+			}
 			catch (Exception ex) {
-				f_dispatcher.trace(ExtensionLogLevel.ERROR, "While load map at path " + file.getPath());
+				f_dispatcher.trace(ExtensionLogLevel.ERROR, "While load map " + mapName);
 				f_dispatcher.trace(ExtensionLogLevel.ERROR, ex.toString());
-				f_dispatcher.trace(ExtensionLogLevel.ERROR, (Object[])ex.getStackTrace());
+				f_dispatcher.trace(ExtensionLogLevel.ERROR, (Object[])ex.getStackTrace());				
 			}
 		}
+		f_dispatcher.trace(ExtensionLogLevel.WARN, "Download maps end");
 	}
 	
 	//Methods

@@ -492,8 +492,10 @@ public class BombersGame extends SFSExtension {
 					SFSObject params = new SFSObject();
 					SFSArray dynamicObjects = new SFSArray();
 					for (WeaponActivateEvent event : events) {
-						event.Apply();
-						dynamicObjects.addSFSObject(event.getSendResult());
+						if (event.getEventGameId() == f_gameId && event.getEventGameId() != INVALID_GAME_ID) {
+							event.Apply();
+							dynamicObjects.addSFSObject(event.getSendResult());
+						}
 					}
 					params.putSFSArray("DOs", dynamicObjects);
 					send("game.MultiDOAct", params, getParentRoom().getUserList());

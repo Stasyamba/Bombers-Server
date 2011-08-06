@@ -20,6 +20,8 @@ public class DynamicObjectManager {
 	
 	public static final int SPECIAL_WALL = 200;
 	
+	public static final int SPECIAL_SPIKES = 210;
+	
 	//Fields
 	
 	private BombersGame f_game;
@@ -63,6 +65,16 @@ public class DynamicObjectManager {
 			    int life = Integer.parseInt(attributes.get("life"));				    
 			    return new SpecialWall(f_game, x, y, destroysBy, life);
 			
+			//Special map objects
+			case SPECIAL_SPIKES:
+				int period = Integer.parseInt(attributes.get("period"));
+				int damage = PlayerGameProfile.C_HealthQuantum;
+				if (attributes.containsKey("damage")) {
+					damage = Integer.parseInt(attributes.get("damage"));
+				}
+				boolean active = Boolean.parseBoolean(attributes.get("active"));
+				return new SpecialSpikes(f_game, x, y, period, damage, active);
+			   
 			//Default
 			default:
 				return null;

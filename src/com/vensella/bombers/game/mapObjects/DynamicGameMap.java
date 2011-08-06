@@ -146,12 +146,11 @@ public class DynamicGameMap {
 	
 	//Constructors
 	
-	public DynamicGameMap(String path, MapManager manager) throws ParserConfigurationException, SAXException, IOException
+	public DynamicGameMap(String uri, MapManager manager) throws ParserConfigurationException, SAXException, IOException
 	{
-		//File file = new File(path);
 		DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
 		DocumentBuilder db = dbf.newDocumentBuilder();
-		Document doc = db.parse(path);
+		Document doc = db.parse(uri);
 		//doc.getDocumentElement().normalize(); 
 		Element rootElement = doc.getDocumentElement();
 		
@@ -268,8 +267,6 @@ public class DynamicGameMap {
 	}
 	
 	//Initialization methods
-	
-	
 	
 	protected void m_initRandomBonuses() {
 		

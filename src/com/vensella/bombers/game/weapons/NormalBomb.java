@@ -47,7 +47,7 @@ public class NormalBomb extends DynamicObject {
 					}
 					@Override
 					public GameEvent getDamageEvent(BombersGame game, final PlayerGameProfile player) {
-						return new GameEvent(game) {
+						return new GameEvent(getGame()) {
 							@Override
 							protected void ApplyOnGame(BombersGame game, DynamicGameMap map) {
 								game.damagePlayer(

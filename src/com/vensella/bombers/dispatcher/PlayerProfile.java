@@ -73,6 +73,7 @@ public class PlayerProfile {
 		f_id = userId;
 		f_nick = "Игрок";
 		f_photo = "";
+		f_currentBomberId = Bombers.C_Bobmer_Fury_Joe;
 		
 		f_energy = C_MaximumFreeEnergy;
 		
@@ -277,7 +278,7 @@ public class PlayerProfile {
 	}
 
 	public boolean isLocationOpened(int locationId) { 
-		return (locationId == Locations.C_GrassFields) || f_locations.containsKey(locationId); 
+		return (locationId == Locations.C_GrassFields || locationId == Locations.C_Castle) || f_locations.containsKey(locationId); 
 	}
 	
 	public boolean isBomberOpened(int bomberId) {

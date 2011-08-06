@@ -32,7 +32,7 @@ public class SpeedBonus extends DynamicObject {
 			@Override
 			protected void ApplyOnGame(BombersGame game, DynamicGameMap map) {
 				PlayerGameProfile profile = game.getGameProfile(getOwner());
-				profile.addSpeed(1.1);
+				profile.addSpeedAbsolute(0.05);
 				setActivated(true);
 				map.removeDynamicObject(f_x, f_y);
 				

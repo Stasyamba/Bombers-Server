@@ -164,6 +164,7 @@ public class PlayerGameProfile {
 	
 	public double getSpeed() { return f_speed; }
 	public void addSpeed(double ratio) { f_speed *= ratio; }
+	public void addSpeedAbsolute(double delta) { f_speed += delta; }
 	public void setSpeed(double speed) { f_speed = speed; }
 	
 	public int getBombPowerBonus() { return f_bombPowerBonus; }

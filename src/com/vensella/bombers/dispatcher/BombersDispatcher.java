@@ -34,8 +34,8 @@ public class BombersDispatcher extends SFSExtension {
 	//Public constants
 	//TODO: Load from configuration
 	
-	public static final String C_ApiId = "2206924";
-	public static final String C_ApiSecret = "yKv1NfQ1a1H9vXvxZ1hF";
+	public static final String C_ApiId = "2141693";
+	public static final String C_ApiSecret = "jqKgEDXPd4T2zojPaRcv";
 	
 	//Flags
 	
@@ -116,9 +116,9 @@ public class BombersDispatcher extends SFSExtension {
 						try {
 							GameEvent event = f_workingQueues[index].take();
 							if (event != null && 
-								((event.getCurrentGameId() == event.getEventGameId() &&
-								event.getEventGameId() != GameEvent.INVALID_GAME_ID) ||
-								event.getForceExecute())
+								(event.getForceExecute() ||
+								 (event.getCurrentGameId() == event.getEventGameId() &&
+								 event.getEventGameId() != GameEvent.INVALID_GAME_ID))
 							) {
 								event.Apply();
 							} else {
@@ -175,6 +175,7 @@ public class BombersDispatcher extends SFSExtension {
 		
 		addRequestHandler("admin.reloadMapManager", AdminReloadMapManagerEventHandler.class);
 		addRequestHandler("admin.reloadPricelistManager", AdminReloadPricelistManagerEventHandler.class);
+		addRequestHandler("admin.resetUserProfile", AdminResetUserProfile.class);
 		
 		//addRequestHandler("stat.setLoginSource", null);
 		
@@ -190,7 +191,7 @@ public class BombersDispatcher extends SFSExtension {
 				
 				//Save all profiles to DB
 				ArrayList<PlayerProfile> profiles = new ArrayList<PlayerProfile>();
-				f_profiles.keySet().retainAll(profiles);
+				profiles.addAll(f_profiles.values());
 				for (PlayerProfile profile : profiles) {
 					Reward sessionReward = profile.getSessionReward();
 					if (sessionReward.isEmpty() == false) {
@@ -209,10 +210,12 @@ public class BombersDispatcher extends SFSExtension {
 				}
 				
 				try {
-					do {
+					Thread.sleep(2000);
+					while (getDbManager().getQueueSize() > 0) {
 						trace(ExtensionLogLevel.WARN, "Bombers zone dispatcher shutdown() waits for DB Queue to be empty");	
 						Thread.sleep(1000);
-					} while (getDbManager().getQueueSize() > 0);
+					}
+					Thread.sleep(1000);
 				} catch (InterruptedException e) {
 					trace(ExtensionLogLevel.WARN, "Bombers zone dispatcher shutdown() sleep interrupted");
 				}
@@ -699,6 +702,13 @@ public class BombersDispatcher extends SFSExtension {
 			
 			f_pricelistManager = new PricelistManager(this);
 		}		
+	}
+	
+	public void adminResetProfile(User user) {
+		PlayerProfile emptyProfile = new PlayerProfile(user.getName());
+		f_profiles.put(user, emptyProfile);
+		f_profileCache.put(user.getName(), emptyProfile);
+		getApi().disconnectUser(user);
 	}
 	
 }
