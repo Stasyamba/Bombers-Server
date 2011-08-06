@@ -64,6 +64,13 @@ public class DynamicGameMap {
 			m_initFields(element);
 		}
 		
+		protected DynamicObjectCreationContainer(int x, int y, int type) {
+			f_x = x;
+			f_y = y;
+			f_type = type;
+			f_attribues = new HashMap<String, String>();
+		}
+		
 		private void m_initFields(Element element) {
 			f_type = Integer.parseInt(element.getAttribute("type"));
 			String chanceString = element.getAttribute("chance");
@@ -186,6 +193,9 @@ public class DynamicGameMap {
 		f_maxPlayers = f_spawnX.length;
 		
 		//Rows
+		f_mapObjects = new int[f_maxX * f_maxY];
+		f_mapObjectsPrototypes = new ArrayList<DynamicObjectCreationContainer>();
+		
 		nl = rootElement.getElementsByTagName("rows");
 		NodeList rowsNodeList = ((Element)nl.item(0)).getElementsByTagName("Row");
 		f_map = new ObjectType[f_maxX][];
@@ -209,17 +219,20 @@ public class DynamicGameMap {
 				{
 					f_map[x][y] = ObjectType.WALL;
 				}
+				else if (rowString.charAt(x) == 'L')
+				{
+					f_map[x][y] = ObjectType.EMPTY;
+					f_mapObjectsPrototypes.add(new DynamicObjectCreationContainer(x, y, DynamicObjectManager.SPECIAL_LAVA));
+				}
 			}
 		}
 		
 		f_dynamicObjects = new DynamicObject[f_maxX * f_maxY];
 		f_damageObjects = new DamageObject[f_maxX * f_maxY];
 		
-		f_mapObjects = new int[f_maxX * f_maxY];
 
 		//TODO: Parse static map objects (bonuses, items, etc...)
 		
-		f_mapObjectsPrototypes = new ArrayList<DynamicObjectCreationContainer>();
 		nl = rootElement.getElementsByTagName("objects");
 		NodeList objectsNodeList = ((Element)nl.item(0)).getElementsByTagName("object");
 		//manager.getDispatcher().trace("Objects count = " + objectsNodeList.getLength());

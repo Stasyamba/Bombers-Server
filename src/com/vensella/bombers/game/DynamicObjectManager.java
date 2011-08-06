@@ -22,6 +22,8 @@ public class DynamicObjectManager {
 	
 	public static final int SPECIAL_SPIKES = 210;
 	
+	public static final int SPECIAL_LAVA = 300;
+	
 	//Fields
 	
 	private BombersGame f_game;
@@ -58,6 +60,11 @@ public class DynamicObjectManager {
 				int itemId = Integer.parseInt(attributes.get("itemId"));
 			    count = Integer.parseInt(attributes.get("count"));				
 				return new ItemBonus(f_game, x, y, itemId, count);
+				
+			//Special empty block
+				
+			case SPECIAL_LAVA:
+				return new LavaObject(f_game, x, y);
 			
 			//Special walls
 			case SPECIAL_WALL:

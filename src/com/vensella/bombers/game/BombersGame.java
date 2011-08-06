@@ -215,8 +215,9 @@ public class BombersGame extends SFSExtension {
 					if (player != null && player.isAlive()) {
 						killPlayer(player);
 					}
+				} else {
+					setUserReadyInternal(user, false);
 				}
-				setUserReadyInternal(user, false);
 			}
 		});
 	}
