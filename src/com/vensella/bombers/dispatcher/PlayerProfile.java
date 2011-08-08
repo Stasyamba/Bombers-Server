@@ -225,7 +225,7 @@ public class PlayerProfile {
 			if (f_energy < C_MaximumFreeEnergy) {
 				int oldEnergy = f_energy;
 				f_energy = Math.min(C_MaximumFreeEnergy, f_energy + (int)(p / C_EnergyPeriod));
-				getSessionStats().energyEarned += oldEnergy - f_energy;
+				getSessionStats().energyEarned += f_energy - oldEnergy;
 			} 
 			f_lastLogin = ts;
 		}
