@@ -24,6 +24,7 @@ import com.smartfoxserver.v2.extensions.ExtensionLogLevel;
 import com.smartfoxserver.v2.extensions.SFSExtension;
 import com.smartfoxserver.v2.util.ClientDisconnectionReason;
 
+import com.vensella.bombers.dispatcher.StatisticsManager.SessionStats;
 import com.vensella.bombers.dispatcher.eventHandlers.*;
 
 import com.vensella.bombers.game.BombersGame;
@@ -39,7 +40,7 @@ public class BombersDispatcher extends SFSExtension {
 	
 	//Flags
 	
-	private static Boolean IsReleaseMode = false;
+	private static Boolean IsReleaseMode = true;
 	//private static Boolean IsDebugMode = true;
 	
 	//Constants
@@ -63,6 +64,7 @@ public class BombersDispatcher extends SFSExtension {
 	
 	//Managers
 	
+	private StatisticsManager f_statisticsManager;
 	private RecordsManager f_recordsManager;
 	private DBQueryManager f_dbQueryManager;
 	private InterfaceManager f_interfaceManager;
@@ -83,16 +85,20 @@ public class BombersDispatcher extends SFSExtension {
 	@Override
 	public void init()
 	{ 
-		trace(ExtensionLogLevel.WARN, "Bombers zone dispatcher init() start");
+		trace(ExtensionLogLevel.WARN, "BombersDispatcher.init() start");
+		
+		getParentZone().setForceLogout(false);
+		trace("BombersDispatcher.isForceLogout = " + getParentZone().isForceLogout());
 		
 		//Initialize fields
 		
 		f_dbQueryManager = new DBQueryManager(this);
+		f_pricelistManager = new PricelistManager(this);
 		f_recordsManager = new RecordsManager(this);
+		f_statisticsManager = new StatisticsManager(this);
 		f_interfaceManager = new InterfaceManager(this);
 		f_moneyManager = new MoneyManager(this);
 		f_mapManager = new MapManager(this);
-		f_pricelistManager = new PricelistManager(this);
 		
 		f_profileCache = new ConcurrentHashMap<String, PlayerProfile>();
 		f_profiles = new ConcurrentHashMap<User, PlayerProfile>();
@@ -177,7 +183,9 @@ public class BombersDispatcher extends SFSExtension {
 		addRequestHandler("admin.reloadPricelistManager", AdminReloadPricelistManagerEventHandler.class);
 		addRequestHandler("admin.resetUserProfile", AdminResetUserProfile.class);
 		
-		//addRequestHandler("stat.setLoginSource", null);
+		addRequestHandler("stat.setLoginSource", StatSetLoginSourceEventHandler.class);
+		addRequestHandler("stat.addShopOpened", StatAddShopOpenedEventHandler.class);
+		addRequestHandler("stat.addPostsPosted", StatAddPostsPostedEventHandler.class);
 		
 		f_shutDownHook = new Thread("Bombers shutdown hook") {
 			public void run() {
@@ -188,25 +196,13 @@ public class BombersDispatcher extends SFSExtension {
 				//TODO: Free all resources (threads, timers, etc..)
 				
 				getRecordsManager().destroy();
+				getStatisticsManager().destroy();
 				
 				//Save all profiles to DB
 				ArrayList<PlayerProfile> profiles = new ArrayList<PlayerProfile>();
 				profiles.addAll(f_profiles.values());
 				for (PlayerProfile profile : profiles) {
-					Reward sessionReward = profile.getSessionReward();
-					if (sessionReward.isEmpty() == false) {
-						getDbManager().ScheduleUpdateQuery(
-								DBQueryManager.SqlAddPlayerResources, new Object[] {
-								sessionReward.getGoldReward(),
-								sessionReward.getCrystalReward(),
-								sessionReward.getAdamantiumReward(),
-								sessionReward.getAntimatterReward(),
-								sessionReward.getEnergyReward(),
-								profile.getId()
-							});
-						profile.removeSessionReward();
-					}
-					saveProfileToDb(profile);
+					m_endSession(profile);
 				}
 				
 				try {
@@ -225,7 +221,7 @@ public class BombersDispatcher extends SFSExtension {
 		};
 		Runtime.getRuntime().addShutdownHook(f_shutDownHook);
 		
-		trace(ExtensionLogLevel.WARN, "Bombers zone dispatcher init() end");
+		trace(ExtensionLogLevel.WARN, "BombersDispatcher.init() end");
 	}
 
 	@Override
@@ -238,6 +234,8 @@ public class BombersDispatcher extends SFSExtension {
 	//Special methods
 	
 	public RecordsManager getRecordsManager() { return f_recordsManager; }
+	
+	public StatisticsManager getStatisticsManager() { return f_statisticsManager; }
 	
 	public MoneyManager getMoneyManager() { return f_moneyManager; }
 	
@@ -270,11 +268,37 @@ public class BombersDispatcher extends SFSExtension {
 	//Login
 	//
 	
-	private void saveProfileToDb(PlayerProfile profile) {
+	private void m_endSession(PlayerProfile profile) {
+		Reward sessionReward = profile.getSessionReward();
+		if (sessionReward.isEmpty() == false) {
+			
+			getDbManager().ScheduleUpdateQuery(
+					DBQueryManager.SqlAddPlayerResources, new Object[] {
+					sessionReward.getGoldReward(),
+					sessionReward.getCrystalReward(),
+					sessionReward.getAdamantiumReward(),
+					sessionReward.getAntimatterReward(),
+					sessionReward.getEnergyReward(),
+					profile.getId()
+				});
+			
+			SessionStats s = profile.getSessionStats();
+			s.goldEarned += sessionReward.getGoldReward();
+			s.crystalEarned += sessionReward.getCrystalReward();
+			s.energyEarned += sessionReward.getEnergyReward();
+			
+			profile.removeSessionReward();
+		}
+		m_saveProfileToDb(profile);
+		getStatisticsManager().closeSession(profile);
+	}
+	
+	private void m_saveProfileToDb(PlayerProfile profile) {
 		String sql = DBQueryManager.SqlUpdateUserDataWhenUserDisconnects;
 		f_dbQueryManager.ScheduleUpdateQuery(sql, new Object[] {
 				profile.getExperience(),
 				profile.getEnergy(),
+				profile.getVotes(),
 				profile.getNick(),
 				profile.getAuraOne(),
 				profile.getAuraTwo(),
@@ -287,11 +311,11 @@ public class BombersDispatcher extends SFSExtension {
 				profile.getTrainingStatus(),
 				profile.getId()
 		});
-		f_dbQueryManager.ScheduleUpdateQuery(
-				DBQueryManager.SqlUpdatePlayerItems, new Object[] { 
-				profile.getItemsData().toJson(), 
-				profile.getId() 
-			});
+//		f_dbQueryManager.ScheduleUpdateQuery(
+//				DBQueryManager.SqlUpdatePlayerItems, new Object[] { 
+//				profile.getItemsData().toJson(), 
+//				profile.getId() 
+//			});
 		f_dbQueryManager.ScheduleUpdateQuery(
 				DBQueryManager.SqlUpdatePlayerCustomParameters, new Object[] { 
 				profile.getCustomParametersData().toJson(), 
@@ -323,11 +347,6 @@ public class BombersDispatcher extends SFSExtension {
 					st.setString(2, dummyJson);
 					st.executeUpdate();
 					
-//					st = conn.prepareStatement(DBQueryManager.SqlInsertPlayerBombers);
-//					st.setString(1, userId);
-//					st.setString(2, dummyJson);
-//					st.executeUpdate();
-					
 				    st = conn.prepareStatement(DBQueryManager.SqlInsertPlayerItems);
 					st.setString(1, userId);
 					st.setString(2, dummyJson);
@@ -347,18 +366,14 @@ public class BombersDispatcher extends SFSExtension {
 					conn.setAutoCommit(true);
 					
 					profile = new PlayerProfile(userId);
+					getStatisticsManager().initSession(profile, true);
+					
 				} else {
 					st = conn.prepareStatement(DBQueryManager.SqlSelectPlayerLocations);
 					st.setString(1, userId);
 					ISFSArray locationsData = SFSArray.newFromJsonData(
 						SFSArray.newFromResultSet(st.executeQuery()).getSFSObject(0).getUtfString("LocationsOpen")
 					);
-					
-//					st = conn.prepareStatement(DBQueryManager.SqlSelectPlayerBombers);
-//					st.setString(1, userId);
-//					ISFSArray bombersData = SFSArray.newFromJsonData(
-//						SFSArray.newFromResultSet(st.executeQuery()).getSFSObject(0).getUtfString("BombersOpen")
-//					);
 					
 					st = conn.prepareStatement(DBQueryManager.SqlSelectPlayerItems);
 					st.setString(1, userId);
@@ -385,6 +400,7 @@ public class BombersDispatcher extends SFSExtension {
 							medalsData, 
 							customParametersData
 						);
+					getStatisticsManager().initSession(profile, false);
 				}
 				
 			}
@@ -421,6 +437,7 @@ public class BombersDispatcher extends SFSExtension {
 		if (IsReleaseMode && f_profileCache.containsKey(userId))
 		{
 			profile = f_profileCache.get(userId);
+			getStatisticsManager().initSession(profile, false);
 		}
 		else
 		{			
@@ -452,20 +469,7 @@ public class BombersDispatcher extends SFSExtension {
 	public void processUserLeave(User user) {
 		trace(ExtensionLogLevel.WARN, "User leave, login = ", user.getName());
 		PlayerProfile profile = getUserProfile(user);
-		Reward sessionReward = profile.getSessionReward();
-		if (sessionReward.isEmpty() == false) {
-			getDbManager().ScheduleUpdateQuery(
-					DBQueryManager.SqlAddPlayerResources, new Object[] {
-					sessionReward.getGoldReward(),
-					sessionReward.getCrystalReward(),
-					sessionReward.getAdamantiumReward(),
-					sessionReward.getAntimatterReward(),
-					sessionReward.getEnergyReward(),
-					profile.getId()
-				});
-			profile.removeSessionReward();
-		}
-		saveProfileToDb(profile);
+		m_endSession(profile);
 		f_profiles.remove(user);
 	}
 	
@@ -647,6 +651,34 @@ public class BombersDispatcher extends SFSExtension {
 	}
 	
 	//
+	//Statistics manager
+	//
+	
+	public void statSetLoginSource(User user, int loginSource) {
+		PlayerProfile profile = getUserProfile(user);
+		profile.getSessionStats().setConnectionSource(loginSource);
+	}
+	
+	public void statAddShopOpened(User user) {
+		PlayerProfile profile = getUserProfile(user);
+		profile.getSessionStats().shopOpened++;	
+	}
+	
+	public void statAddPostsPosted(User user, int postType) {
+		PlayerProfile profile = getUserProfile(user);
+		
+		int post = 1;
+		if (postType == 1) {
+			post = 1000;
+		}
+		if (postType == 2) {
+			post = 1000000;
+		}
+		
+		profile.getSessionStats().postsPosted += post;		
+	}
+	
+	//
 	//Wall manager
 	//
 	
@@ -682,6 +714,7 @@ public class BombersDispatcher extends SFSExtension {
 		}
 	}
 	
+	
 	//Admin tools
 	
 	private boolean isAdmin(String login) {
@@ -704,10 +737,27 @@ public class BombersDispatcher extends SFSExtension {
 		}		
 	}
 	
-	public void adminResetProfile(User user) {
-		PlayerProfile emptyProfile = new PlayerProfile(user.getName());
-		f_profiles.put(user, emptyProfile);
-		f_profileCache.put(user.getName(), emptyProfile);
+	public void adminResetProfile(User user, int option) {
+		PlayerProfile profile = getUserProfile(user);
+		if ((option & 1) > 0) {
+			PlayerProfile emptyProfile = new PlayerProfile(user.getName());
+			f_profiles.put(user, emptyProfile);
+			f_profileCache.put(user.getName(), emptyProfile);
+		} 
+		if ((option & 2) > 0) {
+			profile.clearItems();
+			f_dbQueryManager.ScheduleUpdateQuery(
+				DBQueryManager.SqlUpdatePlayerItems, new Object[] { 
+				profile.getItemsData().toJson(), 
+				profile.getId() 
+			});
+		} 
+		if ((option & 4) > 0) {		
+			profile.clearCustomParameters();
+		} 
+		if ((option & 8) > 0) {		
+			
+		}
 		getApi().disconnectUser(user);
 	}
 	

@@ -13,6 +13,7 @@ import com.smartfoxserver.v2.entities.data.SFSObject;
 
 import com.vensella.bombers.dispatcher.PricelistManager.LevelDescription;
 import com.vensella.bombers.dispatcher.Reward;
+import com.vensella.bombers.dispatcher.StatisticsManager.SessionStats;
 import com.vensella.bombers.game.Bombers;
 import com.vensella.bombers.game.mapObjects.Locations;
 
@@ -192,6 +193,8 @@ public class PlayerProfile {
 	private int f_missionToken;
 	private long f_missionStartTime;
 	
+	private SessionStats f_session;
+	
 	//Getters and setters
 	
 	public String getId() { return f_id; }
@@ -220,7 +223,9 @@ public class PlayerProfile {
 		long p = ts - f_lastLogin;
 		if (p >= C_EnergyPeriod) {
 			if (f_energy < C_MaximumFreeEnergy) {
+				int oldEnergy = f_energy;
 				f_energy = Math.min(C_MaximumFreeEnergy, f_energy + (int)(p / C_EnergyPeriod));
+				getSessionStats().energyEarned += oldEnergy - f_energy;
 			} 
 			f_lastLogin = ts;
 		}
@@ -265,7 +270,10 @@ public class PlayerProfile {
 	public Map<Integer, Integer> getItems() { return f_items; }
 	public boolean hasItemInStack(int itemId) { return f_items.containsKey(itemId); }
 	public boolean hasItems(int itemId, int count) { return f_items.containsKey(itemId) && f_items.get(itemId) >= count; }
-	public int itemCount(int itemId) { return f_items.get(itemId); }
+	public int itemCount(int itemId) { 
+		Integer count =  f_items.get(itemId); 
+		return count != null ? count : 0;
+	}
 	public void addItems(int itemId, int delta) { 
 		if (f_items.containsKey(itemId)) { 
 			f_items.put(itemId, f_items.get(itemId) + delta); 
@@ -276,9 +284,16 @@ public class PlayerProfile {
 	public void removeItem(int itemId) {
 		f_items.remove(itemId);
 	}
+	public void clearItems() { 
+		f_items.clear();
+	}
 
 	public boolean isLocationOpened(int locationId) { 
 		return (locationId == Locations.C_GrassFields || locationId == Locations.C_Castle) || f_locations.containsKey(locationId); 
+	}
+	
+	public void openLocation(int locationId) {
+		f_locations.put(locationId, new Object());
 	}
 	
 	public boolean isBomberOpened(int bomberId) {
@@ -329,6 +344,11 @@ public class PlayerProfile {
 		f_customParametersData = null;
 	}
 	
+	public void clearCustomParameters() {
+		f_customParameters.clear();
+		f_customParametersData = null;
+	}
+	
 	private Reward f_sessionReward;
 	
 	public Reward getSessionReward() {
@@ -339,6 +359,9 @@ public class PlayerProfile {
 	}
 	
 	public void removeSessionReward() { f_sessionReward = new Reward(); }
+	
+	public SessionStats getSessionStats() { return f_session; }
+	public void setSessionStats(SessionStats sessionStats) { f_session = sessionStats;}
 	
 	//Methods
 	
@@ -352,6 +375,7 @@ public class PlayerProfile {
 				}
 			}
 			setLastLevelReward(level.getValue());
+			getSessionStats().energyEarned += Math.max(C_MaximumFreeEnergy - f_energy, 0);
 			setEnergy(Math.max(C_MaximumFreeEnergy, f_energy));
 		}
 	}
@@ -446,9 +470,7 @@ public class PlayerProfile {
 		
 		profile.putInt(C_TrainingStatus, f_trainingStatus);
 		
-		ISFSArray locations = new SFSArray();
-		locations.addIntArray(f_locations.keySet());
-		profile.putSFSArray(C_FldLocationsOpen, locations);
+		profile.putSFSArray(C_FldLocationsOpen, getLocationsData());
 		
 		//ISFSArray bombers = new SFSArray();
 		//bombers.addIntArray(f_bombers.keySet());

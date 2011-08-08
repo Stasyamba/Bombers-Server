@@ -14,7 +14,7 @@ public abstract class DynamicObject {
 			return null;
 		}
 		@Override
-		public void destoyEvent(WeaponActivateEvent baseEvent, BombersGame game, DynamicGameMap map, int weaponId) {
+		public void destoyEvent(WeaponActivateEvent baseEvent, BombersGame game, DynamicGameMap map, int weaponId, int damage) {
 			
 		}
 	};
@@ -101,7 +101,9 @@ public abstract class DynamicObject {
 	
 	public abstract GameEvent getActivateEvent();
 	
-	//When canBeDestoryed == true this methods called by weapon event if weapon affects this object
-	public abstract void destoyEvent(WeaponActivateEvent baseEvent, BombersGame game, DynamicGameMap map, int weaponId);
+	/*
+	 * When canBeDestoryed == true this methods called by weapon event if weapon affects this object
+	 */
+	public abstract void destoyEvent(WeaponActivateEvent baseEvent, BombersGame game, DynamicGameMap map, int weaponId, int damage);
 
 }

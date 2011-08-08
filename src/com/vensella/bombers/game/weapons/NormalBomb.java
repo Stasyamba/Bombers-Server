@@ -12,6 +12,10 @@ import com.vensella.bombers.game.mapObjects.DynamicGameMap;
 
 //Normal bomb
 public class NormalBomb extends DynamicObject {
+	
+	//Constants
+	
+	public static final int C_BaseDamage = PlayerGameProfile.C_HealthQuantum;
 
 	//Constructor
 	
@@ -52,7 +56,7 @@ public class NormalBomb extends DynamicObject {
 							protected void ApplyOnGame(BombersGame game, DynamicGameMap map) {
 								game.damagePlayer(
 										player.getUser(), 
-										PlayerGameProfile.C_HealthQuantum * 1, 
+										C_BaseDamage, 
 										0, 
 										false);
 							}
@@ -74,7 +78,7 @@ public class NormalBomb extends DynamicObject {
 						map.setDamageObject(x, y - i, dam);
 						DynamicObject d = map.getDynamicObject(x, y - i);
 						if (d != null && d.getCanBeDestroyed()) {
-							d.destoyEvent(this, game, map, WeaponsManager.WEAPON_BOMB_NORMAL);
+							d.destoyEvent(this, game, map, WeaponsManager.WEAPON_BOMB_NORMAL, C_BaseDamage);
 						}
 						if (d != null && d.getStopsExplosion()) {
 							break;
@@ -94,7 +98,7 @@ public class NormalBomb extends DynamicObject {
 						map.setDamageObject(x + i, y, dam);
 						DynamicObject d = map.getDynamicObject(x + i, y);
 						if (d != null && d.getCanBeDestroyed()) {
-							d.destoyEvent(this, game, map, WeaponsManager.WEAPON_BOMB_NORMAL);
+							d.destoyEvent(this, game, map, WeaponsManager.WEAPON_BOMB_NORMAL, C_BaseDamage);
 						}
 						if (d != null && d.getStopsExplosion()) {
 							break;
@@ -114,7 +118,7 @@ public class NormalBomb extends DynamicObject {
 						map.setDamageObject(x, y + i, dam);
 						DynamicObject d = map.getDynamicObject(x, y + i);
 						if (d != null && d.getCanBeDestroyed()) {
-							d.destoyEvent(this, game, map, WeaponsManager.WEAPON_BOMB_NORMAL);
+							d.destoyEvent(this, game, map, WeaponsManager.WEAPON_BOMB_NORMAL, C_BaseDamage);
 						}
 						if (d != null && d.getStopsExplosion()) {
 							break;
@@ -134,7 +138,7 @@ public class NormalBomb extends DynamicObject {
 						map.setDamageObject(x - i, y, dam);
 						DynamicObject d = map.getDynamicObject(x - i, y);
 						if (d != null && d.getCanBeDestroyed()) {
-							d.destoyEvent(this, game, map, WeaponsManager.WEAPON_BOMB_NORMAL);
+							d.destoyEvent(this, game, map, WeaponsManager.WEAPON_BOMB_NORMAL, C_BaseDamage);
 						}
 						if (d != null && d.getStopsExplosion()) {
 							break;
@@ -164,7 +168,7 @@ public class NormalBomb extends DynamicObject {
 	}
 	
 	@Override
-	public void destoyEvent(WeaponActivateEvent baseEvent, BombersGame game, DynamicGameMap map, int weaponId) {
+	public void destoyEvent(WeaponActivateEvent baseEvent, BombersGame game, DynamicGameMap map, int weaponId, int damage) {
 		
 	}
 

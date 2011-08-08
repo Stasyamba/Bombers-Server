@@ -10,6 +10,10 @@ import com.vensella.bombers.game.mapObjects.DynamicGameMap;
 
 public class SpecialWall extends DynamicObject {
 
+	//Constants
+	
+	public static final int C_DestroysByAnyWeapon = -1;
+	
 	//Constructor
 	
 	public SpecialWall(BombersGame game, int x, int y, int destroysBy, int life) {
@@ -53,14 +57,14 @@ public class SpecialWall extends DynamicObject {
 	}
 	
 	@Override
-	public void destoyEvent(WeaponActivateEvent baseEvent, BombersGame game, DynamicGameMap map, int weaponId) {
-		if (weaponId != f_destroysBy) {
+	public void destoyEvent(WeaponActivateEvent baseEvent, BombersGame game, DynamicGameMap map, int weaponId, int damage) {
+		if (f_destroysBy != C_DestroysByAnyWeapon && weaponId != f_destroysBy) {
 			return;
 		}
 		long time = System.currentTimeMillis();
 		if (time - f_lastDamaged > 1000) {
 			f_lastDamaged = time;
-			f_life -= 1;
+			f_life -= damage;
 			if (f_life <= 0) {
 				map.removeDynamicObject(f_x, f_y);
 			}

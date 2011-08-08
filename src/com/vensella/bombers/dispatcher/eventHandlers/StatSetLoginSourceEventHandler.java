@@ -8,14 +8,14 @@ import com.smartfoxserver.v2.extensions.BaseClientRequestHandler;
 import com.vensella.bombers.dispatcher.BombersDispatcher;
 
 @Instantiation(InstantiationMode.SINGLE_INSTANCE)
-public class AdminResetUserProfile extends BaseClientRequestHandler {
+public class StatSetLoginSourceEventHandler extends BaseClientRequestHandler {
 
 	@Override
 	public void handleClientRequest(User user, ISFSObject params) {
 		BombersDispatcher dispatcher = (BombersDispatcher)getParentExtension();
-		int options = params.getInt("admin.resetUserProfile.f.options");
+		int source = params.getInt("stat.setLoginSource.f.source");
 		
-		dispatcher.adminResetProfile(user, options);
+		dispatcher.statSetLoginSource(user, source);
 	}
 
 }

@@ -9,6 +9,7 @@ import com.smartfoxserver.v2.entities.data.SFSObject;
 import com.smartfoxserver.v2.extensions.ExtensionLogLevel;
 
 import com.vensella.bombers.dispatcher.PricelistManager.Mission;
+import com.vensella.bombers.dispatcher.StatisticsManager.SessionStats;
 
 public class InterfaceManager {
 	
@@ -79,9 +80,8 @@ public class InterfaceManager {
 	public void buyItem(User user, int itemId, int resourceType)
 	{
 		PlayerProfile profile = f_dispatcher.getUserProfile(user);
-		if (f_dispatcher.getPricelistManager().canBuyItem(itemId, profile, resourceType)) {
-			int stack = f_dispatcher.getPricelistManager().withdrawResourcesAndBuyItem(itemId, profile, resourceType);
-			
+		int stack = f_dispatcher.getPricelistManager().withdrawResourcesAndBuyItem(itemId, profile, resourceType);
+		if (stack > 0) {
 			SFSObject params = new SFSObject();
 			params.putBool("interface.buyItem.result.fields.status", true);
 			params.putInt("interface.buyItem.result.fields.resourceType0", profile.getGold());
@@ -115,6 +115,7 @@ public class InterfaceManager {
 				"User " + user.getName() + " trying to buy resources for " + totalCost + " votes"
 			);
 		
+		final int totalCostFinal = totalCost;
 		f_dispatcher.getMoneyManager().beginTransactVotes(profile, totalCost, 
 				new Runnable() {
 					@Override
@@ -126,6 +127,13 @@ public class InterfaceManager {
 						profile.addAdamantium(rc2);
 						profile.addAntimatter(rc3);
 						profile.addEnergy(rc4);
+						profile.addVotes(totalCostFinal);
+						
+						SessionStats s = profile.getSessionStats();
+						s.goldBuyed += rc0;
+						s.crystalBuyed += rc1;
+						s.energyBuyed += rc4;
+						s.votesSpent += totalCostFinal;
 						
 						String sql = DBQueryManager.SqlAddPlayerResources;
 						f_dispatcher.getDbManager().ScheduleUpdateQuery(sql, new Object[] {
@@ -258,6 +266,9 @@ public class InterfaceManager {
 			profile.addEnergy(-mission.getEnergyCost());
 			profile.setMissionStartTime(System.currentTimeMillis());
 			profile.setMissionToken((int)(1000000 * Math.random()));
+			
+			profile.getSessionStats().energySpent += mission.getEnergyCost();
+			profile.getSessionStats().singleGamesPlayed += 1;
 		
 			//f_dispatcher
 			//	.trace("User " + user.getName() + " starting mission "+ missionId + ", token = " + profile.getMissionToken());

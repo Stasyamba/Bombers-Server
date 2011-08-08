@@ -14,6 +14,7 @@ import com.smartfoxserver.v2.entities.data.SFSArray;
 import com.smartfoxserver.v2.entities.data.SFSObject;
 import com.smartfoxserver.v2.extensions.ExtensionLogLevel;
 
+import com.vensella.bombers.dispatcher.StatisticsManager.SessionStats;
 import com.vensella.bombers.game.mapObjects.Locations;
 
 //TODO: Add concurrent locks
@@ -41,22 +42,55 @@ public class PricelistManager {
 		private int f_crystal;
 		private int f_adamantium;
 		private int f_antimatter;
+		
+		private int f_goldDelta;
+		private int f_crystalDelta;
+		
 		private int f_stack;
+		private int f_maxStack;
 		private int f_level;
 		private boolean f_specialOffer;
 		
 		//Constructors
 		
 		protected ItemCost(Element itemElement) {
-			f_gold = Integer.parseInt(itemElement.getAttribute("gold"));
+			String goldAttr = itemElement.getAttribute("gold");
+			if (goldAttr.contains(",")) {
+				String[] parts = goldAttr.split(",");
+				f_gold = Integer.parseInt(parts[0]);
+				f_goldDelta = Integer.parseInt(parts[1]);
+			} else {
+				f_gold = Integer.parseInt(goldAttr);
+			}
 			f_gold = f_gold > 0 ? f_gold : Integer.MAX_VALUE;
-			f_crystal = Integer.parseInt(itemElement.getAttribute("crystal"));
+			
+			String crystalAttr = itemElement.getAttribute("crystal");
+			if (crystalAttr.contains(",")) {
+				String[] parts = crystalAttr.split(",");
+				f_crystal = Integer.parseInt(parts[0]);
+				f_crystalDelta = Integer.parseInt(parts[1]);
+			} else {
+				f_crystal = Integer.parseInt(crystalAttr);
+			}
 			f_crystal = f_crystal > 0 ? f_crystal : Integer.MAX_VALUE;
-			f_adamantium = Integer.parseInt(itemElement.getAttribute("adamantium"));
+			
+			f_adamantium = 
+				itemElement.getAttribute("adamantium").isEmpty() ? 0 : Integer.parseInt(itemElement.getAttribute("adamantium"));
 			f_adamantium = f_adamantium > 0 ? f_adamantium : Integer.MAX_VALUE;
-			f_antimatter = Integer.parseInt(itemElement.getAttribute("antimatter"));
+			f_antimatter = 
+				itemElement.getAttribute("antimatter").isEmpty() ? 0 : Integer.parseInt(itemElement.getAttribute("antimatter"));
 			f_antimatter = f_antimatter > 0 ? f_antimatter : Integer.MAX_VALUE;
-			f_stack = Integer.parseInt(itemElement.getAttribute("stack"));
+			
+			if (itemElement.getAttribute("stack").isEmpty() == false) {
+				f_stack = Integer.parseInt(itemElement.getAttribute("stack"));
+			} else {
+				f_stack = 1;
+			}
+			if (itemElement.getAttribute("maxStack").isEmpty() == false) {
+				f_maxStack = Integer.parseInt(itemElement.getAttribute("maxStack"));
+			} else {
+				f_maxStack = 1000000;
+			}
 			f_level = Integer.parseInt(itemElement.getAttribute("level"));
 			f_itemId = Integer.parseInt(itemElement.getAttribute("itemId"));
 			f_specialOffer = itemElement.getAttribute("s") == "true";
@@ -77,23 +111,47 @@ public class PricelistManager {
 		//Methods
 		
 		public int getId() { return f_itemId; }
+		
 		public int getGold() { return f_gold; }
 		public int getCrystal() { return f_crystal; }
 		public int getAdamantium() { return f_adamantium; }
 		public int getAntimatter() { return f_antimatter; }
+		
+		/*
+		 * Returns increase of item price per one purchase in gold
+		 */
+		public int getGoldDelta() { return f_goldDelta; }
+		/*
+		 * Returns increase of item price per one purchase in 1/100 crystal
+		 */
+		public int getCrystalDelta() { return f_crystalDelta; }
+		
 		public int getStack() { return f_stack; }
+		public int getMaxStack() { return f_maxStack; }
 		public int getLevel() { return f_level; }
 		public boolean getSpecialOffer() { return f_specialOffer; }
 		
-		public ItemCost getItemCostInSpecifiedResource(int resourceType) {
+		public ItemCost getItemCostInSpecifiedResource(int resourceType, int currentCount) {
 			if ((resourceType & C_ResourceTypeGold) > 0) {
-				return new ItemCost(f_itemId, f_gold, 0, 0, 0, f_stack, f_level, f_specialOffer);
+				//int gold = (f_gold == Integer.MAX_VALUE && currentCount * f_goldDelta > 0) ? 0 : f_gold;
+				int gold = f_gold;
+				return new ItemCost(f_itemId, 
+									gold + f_goldDelta * currentCount, 0, 0, 0, 
+									f_stack, f_level, f_specialOffer);
 			} else if ((resourceType & C_ResourceTypeCrystal) > 0) {
-				return new ItemCost(f_itemId, 0, f_crystal, 0, 0, f_stack, f_level, f_specialOffer);
+				//int crystal = (f_crystal == Integer.MAX_VALUE && currentCount * f_crystalDelta >= 100) ? 0 : f_crystal;
+				int crystal = f_crystal;
+				return new ItemCost(f_itemId, 
+									0, crystal + (currentCount * f_crystalDelta) / 100, 0, 0, 
+									f_stack, f_level, f_specialOffer);
 			} else if ((resourceType & C_ResourceTypeAdamantium) > 0) {
-				return new ItemCost(f_itemId, 0, 0, f_adamantium, 0, f_stack, f_level, f_specialOffer);
+				return new ItemCost(f_itemId, 
+									0, 0, f_adamantium, 0, 
+									f_stack, f_level, f_specialOffer);
 			} else if ((resourceType & C_ResourceTypeAntimatter) > 0) {
-				return new ItemCost(f_itemId, 0, 0, 0, f_antimatter, f_stack, f_level, f_specialOffer);
+				return new ItemCost(f_itemId, 
+									0, 0, 0, f_antimatter, 
+									f_stack, f_level, f_specialOffer);
 			} else {
 				return null;
 			}
@@ -271,9 +329,24 @@ public class PricelistManager {
 		
 	}
 	
+	public class LocationDescription {
+		
+		//Constructor
+		
+		protected LocationDescription(Element locationElement) {
+			
+		}
+		
+		//Fields
+		
+		//Methods
+		
+	}
+	
 	//Constants
 	
-	private static final String PricelistPath = "/usr/local/nginx/html/main/bombers/pricelist/pricelist.xml";
+	//private static final String PricelistPath = "/usr/local/nginx/html/main/bombers/pricelist/pricelist.xml";
+	private static final String C_PricelistUrl = "http://46.182.31.151/bombers/pricelist/pricelist.xml";
 	
 	//Static methods
 	
@@ -320,10 +393,12 @@ public class PricelistManager {
 		f_missions = new HashMap<String, PricelistManager.Mission>();
 		
 		try {
-			parsePricelist(PricelistPath);
+			f_dispatcher.trace(ExtensionLogLevel.WARN, "Download pricelist start");
+			parsePricelist(C_PricelistUrl);
+			f_dispatcher.trace(ExtensionLogLevel.WARN, "Download pricelist end");
 		}
 		catch (Exception ex) {
-			f_dispatcher.trace(ExtensionLogLevel.ERROR, "While parsing pricelist at path " + PricelistPath);
+			f_dispatcher.trace(ExtensionLogLevel.ERROR, "While parsing pricelist at url " + C_PricelistUrl);
 			f_dispatcher.trace(ExtensionLogLevel.ERROR, ex.toString());
 			f_dispatcher.trace(ExtensionLogLevel.ERROR, (Object[])ex.getStackTrace());
 		}
@@ -331,10 +406,10 @@ public class PricelistManager {
 	
 	//Internal methods
 	
-	private void parsePricelist(String path) throws Exception {
+	private void parsePricelist(String uri) throws Exception {
 		DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
 		DocumentBuilder db = dbf.newDocumentBuilder();
-		Document doc = db.parse(path);
+		Document doc = db.parse(uri);
 		//doc.getDocumentElement().normalize(); 
 		Element rootElement = doc.getDocumentElement();
 		
@@ -528,6 +603,7 @@ public class PricelistManager {
 	public void getReward(PlayerProfile profile, Reward reward) {
 		if (reward.getExperienceReward() > 0) {
 			profile.addExperience(reward.getExperienceReward());
+			profile.getSessionStats().experienceEarned += reward.getExperienceReward();
 			profile.checkLevelUps(this);
 		}
 		
@@ -536,6 +612,12 @@ public class PricelistManager {
 		profile.addAdamantium(reward.getAdamantiumReward());
 		profile.addAntimatter(reward.getAntimatterReward());
 		profile.addEnergy(reward.getEnergyReward());
+		
+		SessionStats s = profile.getSessionStats();
+		s.goldEarned += reward.getGoldReward();
+		s.crystalEarned += reward.getCrystalReward();
+		s.energyEarned += reward.getEnergyReward();
+		
 		f_dispatcher.getDbManager().ScheduleUpdateQuery(
 				DBQueryManager.SqlAddPlayerResources, new Object[] {
 				reward.getGoldReward(),
@@ -545,9 +627,13 @@ public class PricelistManager {
 				reward.getEnergyReward(),
 				profile.getId()
 			});
-		
-		for (int itemId : reward.getItemsReward().keySet()) {
-			profile.addItems(itemId, reward.getItemsReward().get(itemId));
+		if (reward.getItemsReward().size() > 0) {
+			for (int itemId : reward.getItemsReward().keySet()) {
+				profile.addItems(itemId, reward.getItemsReward().get(itemId));
+			}
+			String sql = DBQueryManager.SqlUpdatePlayerItems;
+			f_dispatcher.getDbManager().ScheduleUpdateQuery(
+					sql, new Object[] {profile.getItemsData().toJson(), profile.getId() });			
 		}
 	}
 	
@@ -556,8 +642,10 @@ public class PricelistManager {
 		LevelDescription levelTwo = getLevelFor(placeTwo);
 		int expOne = levelOne.getEarnsForPlaceOne() + levelOne.getDeltaFor(levelTwo);
 		placeOne.addExperience(expOne);
+		placeOne.getSessionStats().experienceEarned += expOne;
 		int expTwo = levelTwo.getEarnsForPlaceTwo() + levelTwo.getDeltaFor(levelOne);
 		placeTwo.addExperience(expTwo);
+		placeTwo.getSessionStats().experienceEarned += expTwo;
 	}
 	
 	public void adjustExperience(PlayerProfile placeOne, PlayerProfile placeTwo, PlayerProfile placeThree) {
@@ -566,10 +654,13 @@ public class PricelistManager {
 		LevelDescription levelThree = getLevelFor(placeThree);
 		int expOne = levelOne.getEarnsForPlaceOne() + levelOne.getDeltaFor(levelTwo) + levelOne.getDeltaFor(levelThree);
 		placeOne.addExperience(expOne);
+		placeOne.getSessionStats().experienceEarned += expOne;
 		int expTwo = levelTwo.getEarnsForPlaceTwo() + levelTwo.getDeltaFor(levelOne) + levelTwo.getDeltaFor(levelThree);
 		placeTwo.addExperience(expTwo);
+		placeTwo.getSessionStats().experienceEarned += expTwo;
 		int expThree = levelThree.getEarnsForPlaceThree() + levelThree.getDeltaFor(levelOne) + levelThree.getDeltaFor(levelTwo);
 		placeThree.addExperience(expThree);
+		placeThree.getSessionStats().experienceEarned += expThree;
 	}
 
 	public int getResourcesCost(int gold, int crystal, int adamantium, int antimatter) {
@@ -635,32 +726,32 @@ public class PricelistManager {
 		return Integer.MAX_VALUE;
 	}
 	
-	public boolean canBuyItem(int itemId, PlayerProfile profile, int resourceType) {
-		ItemCost itemCost = f_items.get(itemId);
-		itemCost = itemCost.getItemCostInSpecifiedResource(resourceType);
-		
-		if (itemCost == null) return false;
-		
-		
-		return (profile.getGold() >= itemCost.getGold() &&
-				profile.getCrystal() >= itemCost.getCrystal() &&
-				profile.getAdamantium() >= itemCost.getAdamantium() &&
-				profile.getAntimatter() >= itemCost.getAntimatter() &&
-				getLevelFor(profile).getValue() >= itemCost.getLevel()
-			);
-	}
-	
 	public int withdrawResourcesAndBuyItem(int itemId, PlayerProfile profile, int resourceType) {
 		ItemCost itemCost = f_items.get(itemId);
-		itemCost = itemCost.getItemCostInSpecifiedResource(resourceType);
-		
-		if (itemCost == null) return 0;
+		int playerLevel = getLevelFor(profile).getValue();
+		if (itemCost == null || profile.itemCount(itemId) + itemCost.getStack() > itemCost.getMaxStack()) {
+			return 0;
+		}
+		itemCost = itemCost.getItemCostInSpecifiedResource(resourceType, profile.itemCount(itemId));
+		if (!(profile.getGold() >= itemCost.getGold() &&
+			  profile.getCrystal() >= itemCost.getCrystal() &&
+			  profile.getAdamantium() >= itemCost.getAdamantium() &&
+			  profile.getAntimatter() >= itemCost.getAntimatter() &&
+			  playerLevel >= itemCost.getLevel())) {
+			return 0;
+		}
 		
 		profile.addGold(-itemCost.getGold());
 		profile.addCrystal(-itemCost.getCrystal());
 		profile.addAdamantium(-itemCost.getAdamantium());
 		profile.addAntimatter(-itemCost.getAntimatter());
 		profile.addItems(itemId, itemCost.getStack());
+		
+		f_dispatcher.getStatisticsManager().writeWeaponBuy(itemId);
+		
+		SessionStats s = profile.getSessionStats();
+		s.goldSpent += itemCost.getGold();
+		s.crystalSpent += itemCost.getCrystal();
 		
 		String sql = DBQueryManager.SqlUpdatePlayerItems;
 		f_dispatcher.getDbManager().ScheduleUpdateQuery(
@@ -764,8 +855,11 @@ public class PricelistManager {
 				itemObject.putInt("Crystal", item.getValue().getCrystal());
 				itemObject.putInt("Adamantium", item.getValue().getAdamantium());
 				itemObject.putInt("Antimatter", item.getValue().getAntimatter());
+				itemObject.putInt("GoldDelta", item.getValue().getGoldDelta());
+				itemObject.putInt("CrystalDelta", item.getValue().getCrystalDelta());
 				itemObject.putInt("Level", item.getValue().getLevel());
 				itemObject.putInt("Stack", item.getValue().getStack());
+				itemObject.putInt("MaxStack", item.getValue().getMaxStack());
 				itemObject.putBool("SpecialOffer", item.getValue().getSpecialOffer());
 				items.addSFSObject(itemObject);
 			}
@@ -806,7 +900,7 @@ public class PricelistManager {
 		return f_sfsObject;
 	}
 	
-	
+	public Collection<Integer> getUseableItemsIds() { return f_items.keySet(); }
 	
 	
 }

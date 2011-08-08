@@ -1,7 +1,7 @@
 package com.vensella.bombers.game;
 
+import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 import com.smartfoxserver.v2.entities.User;
 import com.vensella.bombers.dispatcher.PlayerProfile;
@@ -59,9 +59,9 @@ public class PlayerGameProfile {
 	public PlayerGameProfile(User user, PlayerProfile profile)
 	{
 		f_user = user;
-		f_weapons = profile.getItems();
-		f_weaponsUseTraking = new ConcurrentHashMap<Integer, Boolean>();
-		f_weaponsSwitchedOn = new ConcurrentHashMap<Integer, Boolean>();
+		f_weapons = new HashMap<Integer, Integer>(profile.getItems());
+		f_weaponsUseTraking = new HashMap<Integer, Boolean>();
+		f_weaponsSwitchedOn = new HashMap<Integer, Boolean>();
 		
 		f_baseGameProfile = profile;
 		

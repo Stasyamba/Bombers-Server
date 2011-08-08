@@ -90,8 +90,7 @@ public class SpecialSpikes extends DynamicObject {
 	}
 
 	@Override
-	public void destoyEvent(WeaponActivateEvent baseEvent, BombersGame game, DynamicGameMap map, int weaponId) {
-		// TODO Auto-generated method stub
+	public void destoyEvent(WeaponActivateEvent baseEvent, BombersGame game, DynamicGameMap map, int weaponId, int damage) {
 
 	}
 	

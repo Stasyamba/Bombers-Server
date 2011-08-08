@@ -40,11 +40,16 @@ public class WeaponsManager {
 	//Methods
 	
 	protected boolean withdrawWeapon(PlayerGameProfile profile, int weaponId) {
+		boolean success = false;
 		if (weaponId == WEAPON_BOMB_NORMAL) {
-			return profile.setBomb();
+			success = profile.setBomb();
 		} else {
-			return profile.useWeapon(weaponId);
+			success = profile.useWeapon(weaponId);
 		}
+		if (success) {
+			f_game.getDispatcher().getStatisticsManager().writeWeaponUse(weaponId);
+		}
+		return success;
 	}
 	
 	public void activateWeapon(User user, int weaponId, int x, int y) {
@@ -286,7 +291,7 @@ public class WeaponsManager {
 							};
 						}
 						@Override
-						public void destoyEvent(WeaponActivateEvent baseEvent, BombersGame game, DynamicGameMap map, int weaponId) {
+						public void destoyEvent(WeaponActivateEvent baseEvent, BombersGame game, DynamicGameMap map, int weaponId, int damage) {
 							
 						}
 					};

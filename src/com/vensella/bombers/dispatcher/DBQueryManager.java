@@ -41,7 +41,7 @@ public class DBQueryManager {
 	
 	
 	public static final String SqlUpdateUserDataWhenUserDisconnects = 
-		"update `Users` set `Experience` = ?,  `Energy` = ?, " +
+		"update `Users` set `Experience` = ?,  `Energy` = ?, `Votes` = ?, " +
 		"`Nick` = ?, `AuraOne` = ?, `AuraTwo` = ?, `AuraThree` = ?, " +
 		"`RightHand` = ?, `BomberId` = ?, `Photo` = ?, `LastLogin` = ?, `LastLevelReward` = ?, " +
 		"`TrainingStatus` = ? where `Id` = ?";

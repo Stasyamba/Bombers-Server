@@ -68,7 +68,8 @@ public class DynamicObjectManager {
 			
 			//Special walls
 			case SPECIAL_WALL:
-				int destroysBy = Integer.parseInt(attributes.get("destroysBy"));
+				int destroysBy = attributes.containsKey("destroysBy") ? 
+						Integer.parseInt(attributes.get("destroysBy")) : SpecialWall.C_DestroysByAnyWeapon;
 			    int life = Integer.parseInt(attributes.get("life"));				    
 			    return new SpecialWall(f_game, x, y, destroysBy, life);
 			

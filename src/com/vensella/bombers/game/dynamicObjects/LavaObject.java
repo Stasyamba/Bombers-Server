@@ -36,7 +36,7 @@ public class LavaObject extends DynamicObject {
 
 	@Override
 	public void destoyEvent(WeaponActivateEvent baseEvent, BombersGame game,
-			DynamicGameMap map, int weaponId) {
+			DynamicGameMap map, int weaponId, int damage) {
 
 	}
 

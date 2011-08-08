@@ -48,7 +48,7 @@ public class BombCountBonus extends DynamicObject {
 	}
 
 	@Override
-	public void destoyEvent(WeaponActivateEvent baseEvent, BombersGame game, DynamicGameMap map, int weaponId) {
+	public void destoyEvent(WeaponActivateEvent baseEvent, BombersGame game, DynamicGameMap map, int weaponId, int damage) {
 		
 	}
 	

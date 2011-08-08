@@ -545,7 +545,7 @@ public class DynamicGameMap {
 				bonus.putInt("Y", i / f_maxX);
 				bonus.putInt("T", f_mapObjects[i]);
 				
-				//TODO: Rewrite very BAD code
+				//TODO: Rewrite very BAD code, add abstract method toSFSObject to DynamicObject
 				DynamicObject dobj = getDynamicObject(i % f_maxX, i / f_maxX);
 				if (dobj != null) {
 					if (dobj instanceof ResourceBonus) {

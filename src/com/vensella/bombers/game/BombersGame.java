@@ -7,6 +7,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import com.smartfoxserver.v2.core.SFSEventType;
+import com.smartfoxserver.v2.entities.Room;
 import com.smartfoxserver.v2.entities.User;
 import com.smartfoxserver.v2.entities.data.SFSArray;
 import com.smartfoxserver.v2.entities.data.SFSObject;
@@ -114,6 +115,8 @@ public class BombersGame extends SFSExtension {
 	public DynamicGameMap getGameMap() { return f_gameField; }
 	public DynamicObjectManager getDynamicObjectManager() { return f_dynamicObjectManager; }
 	
+	public BombersDispatcher getDispatcher() { return f_dispatcher; }
+	
 	//Methods
 	
 	public PlayerGameProfile getGameProfile(User user) {
@@ -182,6 +185,19 @@ public class BombersGame extends SFSExtension {
 		addGameEvent(new GameEvent(this, true) {
 			@Override
 			protected void ApplyOnGame(BombersGame game, DynamicGameMap map) {
+				
+				int gamesJoinded = 0;
+				for (Room room : user.getJoinedRooms()) {
+					if (room.getExtension() instanceof BombersGame) {
+						gamesJoinded++;
+					}
+				}
+				if (gamesJoinded > 1) {
+					trace(ExtensionLogLevel.ERROR, "User " + user.getName() + " trying to join more then one game!!");
+					getApi().leaveRoom(user, getParentRoom());
+					return;
+				}
+				
 				if (f_isGameStarted == false)
 				{
 					f_players.put(user, f_dispatcher.getUserProfile(user));
@@ -244,6 +260,7 @@ public class BombersGame extends SFSExtension {
 				return;
 			} else {
 				energy -= C_GameCostInEnergy;
+				profile.getSessionStats().energySpent += C_GameCostInEnergy;
 				profile.setEnergy(energy);
 				
 				SFSObject params = new SFSObject();
@@ -308,7 +325,8 @@ public class BombersGame extends SFSExtension {
 		f_bombExplosionQueue.clear();
 		f_gameProfiles.clear();
 		for (User user : getParentRoom().getUserList()) {
-			PlayerGameProfile gameProfile = new PlayerGameProfile(user, f_players.get(user));
+			PlayerProfile profile = f_players.get(user);
+			PlayerGameProfile gameProfile = new PlayerGameProfile(user, profile);
 			f_gameProfiles.put(user, gameProfile);
 		}
 		f_dieSequence = new ArrayList<PlayerGameProfile>(f_gameProfiles.values());
@@ -399,6 +417,7 @@ public class BombersGame extends SFSExtension {
 		}
 		for (PlayerProfile player : f_places) {
 			player.checkLevelUps(f_dispatcher.getPricelistManager());
+			player.getSessionStats().matchesPlayed += 1;
 		}
 
 		SFSArray expProfiles = new SFSArray();
