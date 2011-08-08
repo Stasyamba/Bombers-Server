@@ -637,6 +637,13 @@ public class PricelistManager {
 		}
 	}
 	
+//	private void m_addExpToStat(PlayerProfile profile, int exp) {
+//		SessionStats stats = profile.getSessionStats();
+//		if (stats != null) {
+//			stats.experienceEarned += exp;
+//		}
+//	}
+	
 	public void adjustExperience(PlayerProfile placeOne, PlayerProfile placeTwo) {
 		LevelDescription levelOne = getLevelFor(placeOne);
 		LevelDescription levelTwo = getLevelFor(placeTwo);

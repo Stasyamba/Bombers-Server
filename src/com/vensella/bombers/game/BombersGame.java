@@ -660,6 +660,7 @@ public class BombersGame extends SFSExtension {
 	
 	public void activateWeapon(User user, int weaponId) {
 		PlayerGameProfile profile = getGameProfile(user);
+		if (profile == null) { return; }
 		int xc = (profile.getXi() + 20000) / 40000;
 		int yc = (profile.getYi() + 20000) / 40000;
 		f_weaponsManager.activateWeapon(user, weaponId, xc, yc);

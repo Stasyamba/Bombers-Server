@@ -35,8 +35,8 @@ public class BombersDispatcher extends SFSExtension {
 	//Public constants
 	//TODO: Load from configuration
 	
-	public static final String C_ApiId = "2141693";
-	public static final String C_ApiSecret = "jqKgEDXPd4T2zojPaRcv";
+	public static final String C_ApiId = "2206924";
+	public static final String C_ApiSecret = "yKv1NfQ1a1H9vXvxZ1hF";
 	
 	//Flags
 	

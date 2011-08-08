@@ -289,7 +289,8 @@ public class PlayerProfile {
 	}
 
 	public boolean isLocationOpened(int locationId) { 
-		return (locationId == Locations.C_GrassFields || locationId == Locations.C_Castle) || f_locations.containsKey(locationId); 
+		return (locationId == Locations.C_GrassFields) || f_locations.containsKey(locationId); 
+		// || locationId == Locations.C_Castle
 	}
 	
 	public void openLocation(int locationId) {

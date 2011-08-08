@@ -169,7 +169,6 @@ public class StatisticsManager {
 	
 	public void closeSession(PlayerProfile profile) {
 		SessionStats s = profile.getSessionStats();
-		profile.setSessionStats(null);
 		s.trainingStatusAtEnd = profile.getTrainingStatus();
 		s.levelAtEnd = getDispatcher().getPricelistManager().getLevelFor(profile).getValue();
 		s.endSession();
