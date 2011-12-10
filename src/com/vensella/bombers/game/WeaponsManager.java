@@ -125,6 +125,7 @@ public class WeaponsManager {
 					params.putInt("game.DOAdd.f.type", weaponId);
 					params.putInt("game.DOAdd.f.x", x);
 					params.putInt("game.DOAdd.f.y", y);
+					params.putInt("game.DOAdd.f.id", obj.getId());
 					f_game.send("game.DOAdd", params, f_game.getParentRoom().getPlayersList());
 				}
 			} 
@@ -153,6 +154,7 @@ public class WeaponsManager {
 					params.putInt("game.DOAdd.f.type", weaponId);
 					params.putInt("game.DOAdd.f.x", x);
 					params.putInt("game.DOAdd.f.y", y);
+					params.putInt("game.DOAdd.f.id", obj.getId());
 					f_game.send("game.DOAdd", params, f_game.getParentRoom().getPlayersList());
 				}
 			}  
@@ -285,6 +287,7 @@ public class WeaponsManager {
 									params.putInt("game.DOAct.f.type", weaponId);
 									params.putInt("game.DOAct.f.x", x);
 									params.putInt("game.DOAct.f.y", y);
+									params.putInt("game.DOAct.f.id", getId());
 									params.putBool("game.DOAct.f.isRemoved", true);
 									f_game.send("game.DOAct", params, f_game.getParentRoom().getPlayersList());	
 								}
@@ -302,6 +305,7 @@ public class WeaponsManager {
 					params.putInt("game.DOAdd.f.type", weaponId);
 					params.putInt("game.DOAdd.f.x", x);
 					params.putInt("game.DOAdd.f.y", y);
+					params.putInt("game.DOAdd.f.id", obj.getId());
 					f_game.send("game.DOAdd", params, f_game.getParentRoom().getPlayersList());					
 				}				
 			}
@@ -352,6 +356,7 @@ public class WeaponsManager {
 					params.putInt("game.DOAdd.f.type", weaponId);
 					params.putInt("game.DOAdd.f.x", x);
 					params.putInt("game.DOAdd.f.y", y);
+					params.putInt("game.DOAdd.f.id", obj.getId());
 					f_game.send("game.DOAdd", params, f_game.getParentRoom().getPlayersList());					
 				}				
 			}
@@ -378,7 +383,7 @@ public class WeaponsManager {
 							params.putInt("game.WDA.f.type", weaponId);
 							f_game.send("game.WDA", params, f_game.getParentRoom().getPlayersList());							
 						}
-					}, 2 * 60 * 1000);
+					}, 15 * 1000);
 					
 					SFSObject params = new SFSObject();
 					params.putUtfString("game.WA.f.userId", user.getName());

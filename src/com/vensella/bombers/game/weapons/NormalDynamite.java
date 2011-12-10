@@ -151,6 +151,7 @@ public class NormalDynamite extends DynamicObject {
 				params.putInt("game.DOAct.f.type", WeaponsManager.WEAPON_BOMB_DYNAMITE);
 				params.putInt("game.DOAct.f.x", x);
 				params.putInt("game.DOAct.f.y", y);
+				params.putInt("game.DOAct.f.id", getId());
 				params.putBool("game.DOAct.f.isRemoved", true);
 				params.putInt("game.DOAct.f.s.power", power);
 				params.putInt("game.DOAct.f.s.lifetime", (int)dam.getLifetime());

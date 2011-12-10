@@ -1,10 +1,12 @@
 package com.vensella.bombers.dispatcher;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
+
 
 import com.smartfoxserver.v2.entities.data.ISFSArray;
 import com.smartfoxserver.v2.entities.data.ISFSObject;
@@ -19,14 +21,17 @@ import com.vensella.bombers.game.mapObjects.Locations;
 
 //TODO: Remove f_bombers field
 
-public class PlayerProfile {
+
+public class PlayerProfile implements Serializable {
 
 	//Constants
 	
-	public static final int C_EnergyPeriod = 10 * 60;
-	public static final int C_MaximumFreeEnergy = 100;
+	public static final long serialVersionUID = 1002;
 	
-	public static final int C_BetaMaximunExperience = 600;
+	public static final int C_EnergyPeriod = 10 * 60;
+	public static final int C_MaximumFreeEnergy = 40;
+	
+	public static final int C_BetaMaximunExperience = 11000;
 	
 	public static final String C_Id = "Id";
 	public static final String C_Nick = "Nick";
@@ -79,13 +84,15 @@ public class PlayerProfile {
 		f_energy = C_MaximumFreeEnergy;
 		
 		f_locations = new HashMap<Integer, Object>();
-		f_items = new ConcurrentHashMap<Integer, Integer>();
+		f_items = new HashMap<Integer, Integer>();
 //		f_bombers = new HashMap<Integer, Object>();
 		
 		f_medals = new HashMap<String, Integer>();
 		f_missionTimes = new HashMap<String, Integer>();
 		
-		f_customParameters = new ConcurrentHashMap<Integer, Object>();
+		f_customParameters = new HashMap<Integer, Object>();
+		
+		f_roomsJoinTime = new HashMap<String, Integer>();
 	}
 	
 	public PlayerProfile(
@@ -153,9 +160,13 @@ public class PlayerProfile {
 					customParametersData.getSFSArray(i).getInt(0), 
 					customParametersData.getSFSArray(i).getElementAt(1));
 		}
+		
+		f_roomsJoinTime = new HashMap<String, Integer>();
 	}
 	
 	//Fields
+	
+	transient private boolean f_isOnline;
 	
 	private String f_id;
 	private String f_nick;
@@ -190,12 +201,17 @@ public class PlayerProfile {
 	private Map<String, Integer> f_medals;
 	private Map<String, Integer> f_missionTimes;
 	
-	private int f_missionToken;
-	private long f_missionStartTime;
+	private Map<String, Integer> f_roomsJoinTime; 
 	
-	private SessionStats f_session;
+	transient private int f_missionToken;
+	transient private long f_missionStartTime;
+	
+	transient private SessionStats f_session;
 	
 	//Getters and setters
+	
+	public boolean getIsOnline() { return f_isOnline; }
+	public void setIsOnline(boolean isOnline) { f_isOnline = isOnline; }
 	
 	public String getId() { return f_id; }
 	
@@ -289,7 +305,7 @@ public class PlayerProfile {
 	}
 
 	public boolean isLocationOpened(int locationId) { 
-		return (locationId == Locations.C_GrassFields) || f_locations.containsKey(locationId); 
+		return (locationId == Locations.C_GrassFields || locationId == Locations.C_Castle) || f_locations.containsKey(locationId); 
 		// || locationId == Locations.C_Castle
 	}
 	
@@ -350,7 +366,7 @@ public class PlayerProfile {
 		f_customParametersData = null;
 	}
 	
-	private Reward f_sessionReward;
+	transient private Reward f_sessionReward;
 	
 	public Reward getSessionReward() {
 		if (f_sessionReward == null) {
@@ -363,6 +379,15 @@ public class PlayerProfile {
 	
 	public SessionStats getSessionStats() { return f_session; }
 	public void setSessionStats(SessionStats sessionStats) { f_session = sessionStats;}
+	
+	public int getRoomJoinTime(String roomName) {
+		Integer t = f_roomsJoinTime.get(roomName);
+		return t == null ? 0 : t;
+	}
+	public void setRoomJoinTime(String roomName, int time) {
+		f_roomsJoinTime.put(roomName, time);
+	}
+	
 	
 	//Methods
 	
@@ -425,7 +450,7 @@ public class PlayerProfile {
 		return medals;
 	}
 	
-	private SFSArray f_customParametersData;
+	transient private SFSArray f_customParametersData;
 	
 	public SFSArray getCustomParametersData() {
 		SFSArray data = f_customParametersData;

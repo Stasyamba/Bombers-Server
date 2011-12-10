@@ -16,12 +16,13 @@ public class SpecialWall extends DynamicObject {
 	
 	//Constructor
 	
-	public SpecialWall(BombersGame game, int x, int y, int destroysBy, int life) {
+	public SpecialWall(BombersGame game, int x, int y, int destroysBy, int life, String graphicsId) {
 		super(game, false, false, true, true, true);
 		f_x = x;
 		f_y = y;
 		f_destroysBy = destroysBy;
 		f_life = life;
+		f_graphicsId = graphicsId;
 	}
 	
 	//Fields
@@ -32,12 +33,16 @@ public class SpecialWall extends DynamicObject {
 	private int f_destroysBy;
 	private int f_life;
 	
+	private String f_graphicsId;
+	
 	private long f_lastDamaged;
 	
 	//Methods
 	
 	public int getDestroysBy() { return f_destroysBy; }
 	public int getLife() { return f_life; }
+	
+	public String getGraphicsId() { return f_graphicsId; }
 	
 	@Override
 	public GameEvent getActivateEvent() {
@@ -50,6 +55,7 @@ public class SpecialWall extends DynamicObject {
 				params.putInt("game.DOAct.f.lifeLeft", life);
 				params.putInt("game.DOAct.f.x", f_x);
 				params.putInt("game.DOAct.f.y", f_y);
+				params.putInt("game.DOAct.f.id", getId());
 				params.putBool("game.DOAct.f.isRemoved", life <= 0);
 				getGame().send("game.DOAct", params, getGame().getParentRoom().getPlayersList());	
 			}

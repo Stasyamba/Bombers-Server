@@ -47,10 +47,11 @@ public abstract class WeaponActivateEvent extends GameEvent {
 		f_yCoords.add(y);
 	}
 	
-	public void beginDestroyingDynamicObject(int x, int y) {
+	public void beginDestroyingDynamicObject(int x, int y, int id) {
 		SFSObject coords = new SFSObject();
 		coords.putInt("X", x);
 		coords.putInt("Y", y);
+		coords.putInt("ID", id);
 		coords.putBool("isS", false);
 		f_destroyList.addSFSObject(coords);		
 	}

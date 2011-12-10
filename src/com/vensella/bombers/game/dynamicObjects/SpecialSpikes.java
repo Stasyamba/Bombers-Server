@@ -12,8 +12,10 @@ import com.vensella.bombers.game.mapObjects.DynamicGameMap;
 
 public class SpecialSpikes extends DynamicObject {
 
-	public SpecialSpikes(BombersGame game, int x, int y, int period, int damage, boolean active) {
+	public SpecialSpikes(BombersGame game, int x, int y, int period, int damage, boolean active, String direction) {
 		super(game, false, !active, false, true, active);
+		
+		f_whenAddedToMapGameCount = game.getGamesCount();
 		
 		f_x = x;
 		f_y = y;
@@ -21,9 +23,15 @@ public class SpecialSpikes extends DynamicObject {
 		f_damage = damage;
 		f_period = period;
 		
+		f_direction = direction;
+		
 		game.addDelayedGameEvent(new GameEvent(game, true) {
 			@Override
 			protected void ApplyOnGame(BombersGame game, DynamicGameMap map) {
+				//To prevent forceExecute on next game
+				if (f_whenAddedToMapGameCount + 1 != game.getGamesCount() && game.getGameId() != GameEvent.INVALID_GAME_ID) {
+					return;
+				}
 				game.addBombExplosionEvent((WeaponActivateEvent)getActivateEvent());
 			}
 		}, 3000 + period);
@@ -31,8 +39,12 @@ public class SpecialSpikes extends DynamicObject {
 	
 	//Fields
 	
+	private int f_whenAddedToMapGameCount;
+	
 	private int f_period;
 	private int f_damage;
+	
+	private String f_direction;
 	
 	private int f_x;
 	private int f_y;
@@ -44,6 +56,7 @@ public class SpecialSpikes extends DynamicObject {
 		return new WeaponActivateEvent(getGame()) {
 			@Override
 			protected void ApplyOnGame(BombersGame game, DynamicGameMap map) {
+				
 				setActivated(!getActivated());
 				setCanGoThrough(!getActivated());
 				setStopsExplosion(getActivated());
@@ -76,6 +89,7 @@ public class SpecialSpikes extends DynamicObject {
 				params.putInt("game.DOAct.f.type", DynamicObjectManager.SPECIAL_SPIKES);
 				params.putInt("game.DOAct.f.x", f_x);
 				params.putInt("game.DOAct.f.y", f_y);
+				params.putInt("game.DOAct.f.id", getId());
 				params.putBool("game.DOAct.f.isActive", getActivated());
 				setSendResult(params);
 				
@@ -98,5 +112,7 @@ public class SpecialSpikes extends DynamicObject {
 	
 	public int getPeriod() { return f_period; }
 	public int getDamage() { return f_damage; }
+	
+	public String getDirection() { return f_direction; }
 
 }

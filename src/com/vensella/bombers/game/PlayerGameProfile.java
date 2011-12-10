@@ -48,6 +48,8 @@ public class PlayerGameProfile {
 	
 	private long f_lastMoveCalculation;
 	
+	private boolean f_moveActionDone;
+	
 	private User f_user;
 	
 	private Map<Integer, Integer> f_weapons;
@@ -137,6 +139,9 @@ public class PlayerGameProfile {
 	
 	public int getInputDirection() { return f_inputDirection; }
 	public void setInputDirection(int inputDirection) { f_inputDirection = inputDirection; }
+	
+	public boolean getMoveActionPerformed() { return f_moveActionDone; }
+	public void setMoveActionPerformed(boolean moveActionPerformed) { f_moveActionDone = moveActionPerformed; }
 	
 	//Getters and setters
 	

@@ -4,9 +4,14 @@ import com.smartfoxserver.v2.entities.User;
 import com.vensella.bombers.dispatcher.GameEvent;
 import com.vensella.bombers.game.mapObjects.DynamicGameMap;
 
+import java.util.concurrent.atomic.*;
+
 public abstract class DynamicObject {
 	
+	
 	//Constants
+	
+	private static final AtomicInteger C_IdSeed = new AtomicInteger();
 	
 	public static final DynamicObject C_DummyUnwalkable = new DynamicObject(null, false, false) {
 		@Override
@@ -20,6 +25,8 @@ public abstract class DynamicObject {
 	};
 	
 	//Fields
+	
+	private int f_id;
 	
 	private boolean f_canBeActivatedByPlayer;
 	private boolean f_canGoThrough;
@@ -36,6 +43,7 @@ public abstract class DynamicObject {
 	//Constructors
 	
 	public DynamicObject(BombersGame game, boolean canBeActivatedByPlayer, boolean canGoThrough) {
+		f_id = C_IdSeed.incrementAndGet();
 		f_game = game;
 		f_canBeActivatedByPlayer = canBeActivatedByPlayer;
 		f_canGoThrough = canGoThrough;
@@ -77,6 +85,8 @@ public abstract class DynamicObject {
 	//Methods
 	
 	protected BombersGame getGame() { return f_game; }
+	
+	public int getId() { return f_id; }
 	
 	public boolean getActivated() { return f_activated; }
 	public void setActivated(boolean activated) { f_activated = activated; }

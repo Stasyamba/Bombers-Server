@@ -4,8 +4,6 @@ package com.vensella.bombers.dispatcher;
 
 import java.util.*;
 
-import java.util.concurrent.ConcurrentHashMap;
-
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 
@@ -46,7 +44,8 @@ public class MapManager {
 		f_dispatcher = dispatcher;
 		f_mapPool = new HashMap<Integer, ArrayList<DynamicGameMap>>();
 		//f_bigObjectPool = new HashMap<String, DynamicBigObject>();
-		f_mapRotation = new ConcurrentHashMap<Room, Integer>();
+		//f_mapRotation = new ConcurrentHashMap<Room, Integer>();
+		f_mapRotation = new WeakHashMap<Room, Integer>();
 		
 		initializeBigObjectPool();
 		initializeMapPool();
@@ -105,7 +104,7 @@ public class MapManager {
 	
 	//Methods
 	
-	public DynamicGameMap getRandomMap(BombersGame game, int players) {
+	public synchronized DynamicGameMap getRandomMap(BombersGame game, int players) {
 		Room room = game.getParentRoom();
 		int locationId = game.getLocationId();
 		
@@ -125,7 +124,18 @@ public class MapManager {
 			f_mapRotation.put(room, ++index);
 		}
 		
-		return new DynamicGameMap(game, candidates.get(index % candidates.size()));
+		DynamicGameMap map = null;
+		DynamicGameMap prototype = candidates.get(index % candidates.size());
+		try {
+			map = new DynamicGameMap(game, prototype);
+		}
+		catch (Exception e) {
+			f_dispatcher.trace(ExtensionLogLevel.ERROR, "While try to init map wtih id = " + prototype.getMapId());
+			f_dispatcher.trace(ExtensionLogLevel.ERROR, e.toString());
+			f_dispatcher.trace(ExtensionLogLevel.ERROR, (Object[])e.getStackTrace());
+			map = getRandomMap(game, players);
+		}
+		return map;
 	}
 	
 	public BombersDispatcher getDispatcher() { return f_dispatcher; }

@@ -152,6 +152,7 @@ public class NormalBomb extends DynamicObject {
 				SFSObject params = new SFSObject();
 				params.putUtfString("game.DOAct.f.userId", profile.getUser().getName());
 				params.putInt("game.DOAct.f.type", WeaponsManager.WEAPON_BOMB_NORMAL);
+				params.putInt("game.DOAct.f.id", getId());
 				params.putInt("game.DOAct.f.x", x);
 				params.putInt("game.DOAct.f.y", y);
 				params.putBool("game.DOAct.f.isRemoved", true);

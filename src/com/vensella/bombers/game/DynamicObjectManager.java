@@ -70,8 +70,9 @@ public class DynamicObjectManager {
 			case SPECIAL_WALL:
 				int destroysBy = attributes.containsKey("destroysBy") ? 
 						Integer.parseInt(attributes.get("destroysBy")) : SpecialWall.C_DestroysByAnyWeapon;
-			    int life = Integer.parseInt(attributes.get("life"));				    
-			    return new SpecialWall(f_game, x, y, destroysBy, life);
+			    int life = Integer.parseInt(attributes.get("life"));
+			    String graphicsId = attributes.get("graphicsId");
+			    return new SpecialWall(f_game, x, y, destroysBy, life, graphicsId);
 			
 			//Special map objects
 			case SPECIAL_SPIKES:
@@ -81,7 +82,8 @@ public class DynamicObjectManager {
 					damage = Integer.parseInt(attributes.get("damage"));
 				}
 				boolean active = Boolean.parseBoolean(attributes.get("active"));
-				return new SpecialSpikes(f_game, x, y, period, damage, active);
+				String direction = attributes.get("orientation");
+				return new SpecialSpikes(f_game, x, y, period, damage, active, direction);
 			   
 			//Default
 			default:

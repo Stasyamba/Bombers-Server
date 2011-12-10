@@ -47,6 +47,7 @@ public class NormalMine extends DynamicObject {
 				params.putInt("game.DOAct.f.type", WeaponsManager.WEAPON_MINE_NORMAL);
 				params.putInt("game.DOAct.f.x", x);
 				params.putInt("game.DOAct.f.y", y);
+				params.putInt("game.DOAct.f.id", getId());
 				params.putBool("game.DOAct.f.isRemoved", true);
 				getGame().send("game.DOAct", params, getGame().getParentRoom().getPlayersList());	
 			}
@@ -55,7 +56,7 @@ public class NormalMine extends DynamicObject {
 	
 	@Override
 	public void destoyEvent(WeaponActivateEvent baseEvent, BombersGame game, DynamicGameMap map, int weaponId, int damage) {
-		baseEvent.beginDestroyingDynamicObject(x, y);
+		baseEvent.beginDestroyingDynamicObject(x, y, getId());
 		map.removeDynamicObject(x, y);
 	}
 

@@ -132,11 +132,16 @@ public class DynamicGameMap {
 	
 	//Fields
 	
+	private boolean f_blockRandomBonuses;
+	private int f_minimumLevel;
+	
 	private int f_mapId;
 	private int f_locationId;
 	
 	private int f_maxX;
 	private int f_maxY;
+	private int f_maxXi;
+	private int f_maxYi;
 	
 	private int f_maxPlayers;
 	private int[] f_spawnX;
@@ -163,6 +168,12 @@ public class DynamicGameMap {
 		
 		NodeList nl = null;
 		
+		f_blockRandomBonuses = rootElement.getAttribute("blockRandomBonues").equals("true");
+		String minimumLevelAttr = rootElement.getAttribute("minimumLevel");
+		if (minimumLevelAttr.isEmpty() == false) {
+			f_minimumLevel = Integer.parseInt(minimumLevelAttr);
+		}
+		
 		//Id
 		nl = rootElement.getElementsByTagName("id");
 		Element idElement = (Element)nl.item(0);
@@ -178,6 +189,8 @@ public class DynamicGameMap {
 		Element sizeElement = (Element)nl.item(0);
 		f_maxX = Integer.parseInt(sizeElement.getAttribute("width"));
 		f_maxY = Integer.parseInt(sizeElement.getAttribute("height"));
+		f_maxXi = f_maxX * C_BlockSizeInt;
+		f_maxYi = f_maxY * C_BlockSizeInt;
 		
 		//Spawns
 		nl = rootElement.getElementsByTagName("spawns");
@@ -246,12 +259,17 @@ public class DynamicGameMap {
 	public DynamicGameMap(BombersGame game, DynamicGameMap prototype) {
 		f_game = game;
 		
+		f_blockRandomBonuses = prototype.f_blockRandomBonuses;
+		f_minimumLevel = prototype.f_minimumLevel;
+		
 		f_mapId = prototype.f_mapId;
 		f_locationId = prototype.f_locationId;
 		
 		f_maxPlayers = prototype.f_maxPlayers;
 		f_maxX = prototype.f_maxX;
 		f_maxY = prototype.f_maxY;
+		f_maxXi = prototype.f_maxXi;
+		f_maxYi = prototype.f_maxYi;
 		f_spawnX = new int[f_maxPlayers];
 		f_spawnY = new int[f_maxPlayers];
 		for (int i = 0; i < f_maxPlayers; ++i) {
@@ -275,7 +293,9 @@ public class DynamicGameMap {
 		
 		f_mapObjectsPrototypes = prototype.f_mapObjectsPrototypes;
 		
-		m_initRandomBonuses();
+		if (f_blockRandomBonuses == false) {
+			m_initRandomBonuses();
+		}
 		m_initConfiguredBonuses();
 	}
 	
@@ -297,7 +317,7 @@ public class DynamicGameMap {
 		int countGold5 = 0;
 		
 		int totalGold = 0;
-		int maxGold = 10;
+		int maxGold = 5;
 		while (totalGold < maxGold) {
 			double r = Math.random();
 			if (r < 0.2) {
@@ -436,6 +456,10 @@ public class DynamicGameMap {
 	
 	//Getters and setters
 	
+	public boolean getBlockRandomBonuses() { return f_blockRandomBonuses; }
+	
+	public int getMinimumLevel() { return f_minimumLevel; }
+	
 	public int getMapId() { return f_mapId; }
 	
 	public int getLocationId() { return f_locationId; }
@@ -443,6 +467,10 @@ public class DynamicGameMap {
 	public int getWidth() { return f_maxX; }
 	
 	public int getHeight() { return f_maxY; }
+	
+	public int getWidthI() { return f_maxXi; }
+	
+	public int getHeightI() { return f_maxYi; }
 	
 	public ObjectType getObjectTypeAt(int x, int y) {
 		if (x < 0 || y < 0 || y >= f_maxY || x >= f_maxX)
@@ -548,6 +576,7 @@ public class DynamicGameMap {
 				//TODO: Rewrite very BAD code, add abstract method toSFSObject to DynamicObject
 				DynamicObject dobj = getDynamicObject(i % f_maxX, i / f_maxX);
 				if (dobj != null) {
+					bonus.putInt("ID", dobj.getId());
 					if (dobj instanceof ResourceBonus) {
 						ResourceBonus rb = (ResourceBonus)dobj;
 						bonus.putInt("P0", rb.getResourceType());
@@ -559,7 +588,12 @@ public class DynamicGameMap {
 					} else if (dobj instanceof SpecialWall) {
 						SpecialWall rb = (SpecialWall)dobj;
 						bonus.putInt("P0", rb.getDestroysBy());
-						bonus.putInt("P1", rb.getLife());						
+						bonus.putInt("P1", rb.getLife());	
+						bonus.putUtfString("P2", rb.getGraphicsId());
+					} else if (dobj instanceof SpecialSpikes) {
+						SpecialSpikes ss = (SpecialSpikes)dobj;
+						bonus.putBool("P0", ss.getActivated());
+						bonus.putUtfString("P1", ss.getDirection());
 					}
 				}
 				
@@ -576,7 +610,8 @@ public class DynamicGameMap {
 			checkPlayerPosition(profile);
 			return;
 		}
-		
+		profile.setMoveActionPerformed(true);
+	
 		int distance = (int)(millsTicks * profile.getSpeed());
 		
 		if (distance >= C_BlockSizeInt) {

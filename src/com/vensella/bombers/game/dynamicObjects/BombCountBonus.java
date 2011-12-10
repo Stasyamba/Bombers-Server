@@ -41,6 +41,7 @@ public class BombCountBonus extends DynamicObject {
 				params.putInt("game.DOAct.f.type", DynamicObjectManager.BONUS_ADD_BOMB);
 				params.putInt("game.DOAct.f.x", f_x);
 				params.putInt("game.DOAct.f.y", f_y);
+				params.putInt("game.DOAct.f.id", getId());
 				params.putBool("game.DOAct.f.isRemoved", true);
 				getGame().send("game.DOAct", params, getGame().getParentRoom().getPlayersList());	
 			}

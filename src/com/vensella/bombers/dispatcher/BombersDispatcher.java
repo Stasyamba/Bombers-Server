@@ -1,6 +1,7 @@
-package com.vensella.bombers.dispatcher;
+ package com.vensella.bombers.dispatcher;
 
 import java.lang.reflect.Array;
+import java.net.InetSocketAddress;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -10,6 +11,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+
+import net.spy.memcached.CacheMap;
+import net.spy.memcached.MemcachedClient;
 
 import com.smartfoxserver.v2.api.CreateRoomSettings;
 import com.smartfoxserver.v2.api.CreateRoomSettings.RoomExtensionSettings;
@@ -30,10 +34,15 @@ import com.vensella.bombers.dispatcher.eventHandlers.*;
 import com.vensella.bombers.game.BombersGame;
 import com.vensella.bombers.game.mapObjects.Locations;
 
+
+
 public class BombersDispatcher extends SFSExtension {
 	
 	//Public constants
 	//TODO: Load from configuration
+	
+//	public static final String C_ApiId = "2141693";
+//	public static final String C_ApiSecret = "jqKgEDXPd4T2zojPaRcv";
 	
 	public static final String C_ApiId = "2206924";
 	public static final String C_ApiSecret = "yKv1NfQ1a1H9vXvxZ1hF";
@@ -46,6 +55,7 @@ public class BombersDispatcher extends SFSExtension {
 	//Constants
 	
 	private static final String C_GameGroupId = "Games";
+	private static final int C_RoomJoinIntervalSeconds = 10;
 	
 	private static final int C_WorkingThreadCount = 3;
 	private static final int C_DelayedEventTimersCount = 1;
@@ -62,6 +72,8 @@ public class BombersDispatcher extends SFSExtension {
 	private Thread[] f_workingThreads;
 	private LinkedBlockingQueue<GameEvent>[] f_workingQueues;
 	
+	private DBQueryManager f_loginPerformer;
+	
 	//Managers
 	
 	private StatisticsManager f_statisticsManager;
@@ -74,7 +86,7 @@ public class BombersDispatcher extends SFSExtension {
 	
 	//User tracking
 	
-	private Map<String, PlayerProfile> f_profileCache;
+	private Map<String, Object> f_profileCache;
 	private Map<User, PlayerProfile> f_profiles;
 	
 	//Game settings
@@ -92,6 +104,8 @@ public class BombersDispatcher extends SFSExtension {
 		
 		//Initialize fields
 		
+		f_loginPerformer = new DBQueryManager(this, "Bombers Login Performer");
+		
 		f_dbQueryManager = new DBQueryManager(this);
 		f_pricelistManager = new PricelistManager(this);
 		f_recordsManager = new RecordsManager(this);
@@ -100,7 +114,17 @@ public class BombersDispatcher extends SFSExtension {
 		f_moneyManager = new MoneyManager(this);
 		f_mapManager = new MapManager(this);
 		
-		f_profileCache = new ConcurrentHashMap<String, PlayerProfile>();
+		//f_profileCache = new ConcurrentHashMap<String, PlayerProfile>();
+		try {
+			f_profileCache = new CacheMap(new MemcachedClient(new InetSocketAddress("127.0.0.1", 11211)), "b_");
+		}
+		catch (Exception ex) {
+			trace(ExtensionLogLevel.ERROR, "Can't connect to memcached server, use simple internal cache instead");
+			trace(ExtensionLogLevel.ERROR, ex.toString());
+			trace(ExtensionLogLevel.ERROR, (Object[])ex.getStackTrace());	
+			f_profileCache = new HashMap<String, Object>();
+		}
+		
 		f_profiles = new ConcurrentHashMap<User, PlayerProfile>();
 
 		//Initialize of internal structure
@@ -132,6 +156,7 @@ public class BombersDispatcher extends SFSExtension {
 							}
 						} catch (Exception ex) {
 							trace(ExtensionLogLevel.ERROR, "[Warning] " + ex.toString());
+							//trace(ExtensionLogLevel.ERROR, ex.)
 							trace(ExtensionLogLevel.ERROR, (Object[])ex.getStackTrace());
 						}
 					}
@@ -139,7 +164,7 @@ public class BombersDispatcher extends SFSExtension {
 			}, "Working thread " + i);
 			f_workingThreads[i].start();
 		}
-		
+		//MemcachedClient f = null;
 		//Initialize system event handlers
 		
 		//addEventHandler(SFSEventType.ROOM_ADDED, RoomAddedEventHandler.class);
@@ -241,6 +266,8 @@ public class BombersDispatcher extends SFSExtension {
 	
 	public DBQueryManager getDbManager() { return f_dbQueryManager; }
 	
+	public DBQueryManager getLoginPerformer() { return f_loginPerformer; }
+	
 	public InterfaceManager getInterfaceManager() { return f_interfaceManager; }
 	
 	public MapManager getMapManager() { return f_mapManager; }
@@ -291,6 +318,7 @@ public class BombersDispatcher extends SFSExtension {
 		}
 		m_saveProfileToDb(profile);
 		getStatisticsManager().closeSession(profile);
+		profile.setIsOnline(false);
 	}
 	
 	private void m_saveProfileToDb(PlayerProfile profile) {
@@ -430,47 +458,85 @@ public class BombersDispatcher extends SFSExtension {
 		return profile;
 	}
 	
-	public void loginUser(User user) {
-		String userId =  user.getName();
-		PlayerProfile profile = null;
-		
-		if (IsReleaseMode && f_profileCache.containsKey(userId))
-		{
-			profile = f_profileCache.get(userId);
-			getStatisticsManager().initSession(profile, false);
-		}
-		else
-		{			
-			profile = loadProfileFromDb(user);
-			if (profile == null) {
-				user.disconnect(ClientDisconnectionReason.UNKNOWN);
-			} else {
-				f_profileCache.put(userId, profile);
+	public void loginUser(final User user) {
+		f_loginPerformer.ScheduleCustomAction(new Runnable() {
+			@Override
+			public void run() {
+				if (f_profiles.containsKey(user)) {
+					//TODO: To fast reconnect
+					trace(ExtensionLogLevel.ERROR, "User " + user.getName() + " trying to reconect to fast!");
+					user.disconnect(ClientDisconnectionReason.UNKNOWN);
+					return;
+				}
+				
+				String userId =  user.getName();
+				
+				Object profileObject = f_profileCache.get(userId);
+				PlayerProfile profile = null;
+				
+				if (IsReleaseMode && profileObject != null)
+				{
+					profile = (PlayerProfile)profileObject;
+					getStatisticsManager().initSession(profile, false);
+				}
+				else
+				{			
+					profile = loadProfileFromDb(user);
+					if (profile == null) {
+						trace(ExtensionLogLevel.ERROR, "PlayerProfile for user " + userId + " is null!");
+						user.disconnect(ClientDisconnectionReason.UNKNOWN);
+					} else {
+						f_profileCache.put(userId, profile);
+					}
+				}
+				if (profile != null) {
+					f_profiles.put(user, profile);
+					
+					profile.getEnergy();
+					profile.setMissionToken(InterfaceManager.C_DefaultMissionToken);
+					profile.setIsOnline(true);
+					
+					ISFSObject params = profile.toSFSObject();
+					
+					trace(ExtensionLogLevel.WARN, "User enter, login = " + userId);
+					//trace(ExtensionLogLevel.WARN, params.toJson());
+					
+					params.putSFSObject("Pricelist", f_pricelistManager.toSFSObject());
+					params.putSFSArray("MissionRecords", f_recordsManager.getMissionRecordsData());
+					
+					send("interface.gameProfileLoaded", params, user);	
+				} else {
+					trace(ExtensionLogLevel.ERROR, "PlayerProfile for user " + userId + " is null!");
+				}
+				
 			}
-		}
-		if (profile != null) {
-			f_profiles.put(user, profile);
-			
-			profile.getEnergy();
-			profile.setMissionToken(InterfaceManager.C_DefaultMissionToken);
-			
-			ISFSObject params = profile.toSFSObject();
-			
-			trace(ExtensionLogLevel.WARN, "User login, " + userId);
-			trace(ExtensionLogLevel.WARN, params.toJson());
-			
-			params.putSFSObject("Pricelist", f_pricelistManager.toSFSObject());
-			params.putSFSArray("MissionRecords", f_recordsManager.getMissionRecordsData());
-			
-			send("interface.gameProfileLoaded", params, user);	
-		}
+		}, 1000);
 	}
 	
-	public void processUserLeave(User user) {
-		trace(ExtensionLogLevel.WARN, "User leave, login = ", user.getName());
-		PlayerProfile profile = getUserProfile(user);
-		m_endSession(profile);
-		f_profiles.remove(user);
+	public void processUserLeave(final User user, final List<Room> rooms) {
+		getLoginPerformer().ScheduleCustomAction(new Runnable() {
+			@Override
+			public void run() {
+				final PlayerProfile profile = getUserProfile(user);
+				if (profile != null && profile.getIsOnline()) {
+					trace(ExtensionLogLevel.WARN, "User leave, login = ", user.getName());
+					for (Room room : rooms) {
+						if (room.getExtension() instanceof BombersGame) {
+							BombersGame game = (BombersGame) room.getExtension();
+							game.processUserLeave(user);
+						}
+					}
+					getLoginPerformer().ScheduleCustomAction(new Runnable() {
+						@Override
+						public void run() {
+							m_endSession(profile);
+							f_profiles.remove(user);
+							f_profileCache.put(profile.getId(), profile);
+						}
+					}, 500);
+				}
+			}
+		});
 	}
 	
 	public PlayerProfile getUserProfile(User user) {
@@ -492,6 +558,7 @@ public class BombersDispatcher extends SFSExtension {
 	}
 	
 	public void fastJoin(User user) {
+		int time = (int)(System.currentTimeMillis() / 1000);
 		PlayerProfile profile = getUserProfile(user);
 		List<Room> rooms = new ArrayList<Room>(getParentZone().getRoomListFromGroup(C_GameGroupId));
 		List<Integer> locations = Locations.findBestLocations(profile);
@@ -503,6 +570,7 @@ public class BombersDispatcher extends SFSExtension {
 		Room emptyRoom = null;
 		for (Room room : rooms) {
 			if (room.isFull() || room.isPasswordProtected()) continue;
+			if (time - profile.getRoomJoinTime(room.getName()) < C_RoomJoinIntervalSeconds) continue;
 			BombersGame game = (BombersGame)room.getExtension();
 			if (game.isGameStarted()) continue;
 			if (locations.contains(game.getLocationId())) {
@@ -541,6 +609,7 @@ public class BombersDispatcher extends SFSExtension {
 	}
 	
 	public void fastJoin(User user, int locationId) {
+		int time = (int)(System.currentTimeMillis() / 1000);
 		PlayerProfile profile = getUserProfile(user);
 		if (profile.isLocationOpened(locationId) == false) return;
 		List<Room> rooms = new ArrayList<Room>(getParentZone().getRoomListFromGroup(C_GameGroupId));
@@ -550,6 +619,7 @@ public class BombersDispatcher extends SFSExtension {
 		int currentMinExpDiff = Integer.MAX_VALUE;
 		for (Room room : rooms) {
 			if (room.isFull() || room.isPasswordProtected()) continue;
+			if (time - profile.getRoomJoinTime(room.getName()) < C_RoomJoinIntervalSeconds) continue;
 			BombersGame game = (BombersGame)room.getExtension();
 			if (game.isGameStarted()) continue;
 			if (game.getLocationId() == locationId) {
@@ -582,10 +652,12 @@ public class BombersDispatcher extends SFSExtension {
 	
 	public void fastJoin(User user, String gameName, String password) {
 		try { 
+			int time = (int)(System.currentTimeMillis() / 1000);
 			PlayerProfile profile = getUserProfile(user);
 			Room room = getParentZone().getRoomByName(gameName);
 			BombersGame game = (room == null) ? null : (BombersGame)room.getExtension();
-			if (room == null || game.isGameStarted() || !profile.isLocationOpened(game.getLocationId())) {
+			if (room == null || game.isGameStarted() || !profile.isLocationOpened(game.getLocationId()) ||
+				time - profile.getRoomJoinTime(room.getName()) < C_RoomJoinIntervalSeconds) {
 				SFSObject params = new SFSObject();
 				params.putBool("interface.gameManager.fastJoin.result.fields.status", false);
 				send("interface.gameManager.fastJoin.result", params, user);
@@ -618,8 +690,23 @@ public class BombersDispatcher extends SFSExtension {
 		}
 	}                                                                                    
 	
-	private void createGameInternal(User user, int locationId, String gameName, String password, boolean createByUser) 
+	private Room createGameInternal(User user, int locationId, String gameName, String password, boolean createByUser) 
 		throws SFSCreateRoomException, SFSJoinRoomException {
+		CreateRoomSettings settings = getRoomSettings(locationId, gameName, password, createByUser);
+		
+		Room r = getApi().createRoom(getParentZone(), settings, user, true, null);
+		return r;
+	}
+	
+	private Room createGameInternal(int locationId, String gameName, String password, boolean createByUser) 
+		throws SFSCreateRoomException, SFSJoinRoomException {
+		CreateRoomSettings settings = getRoomSettings(locationId, gameName, password, createByUser);
+		
+		Room r = getApi().createRoom(getParentZone(), settings, null);
+		return r;		
+	}
+	
+	private CreateRoomSettings getRoomSettings(int locationId, String gameName, String password, boolean createByUser) {
 		CreateRoomSettings settings = new CreateRoomSettings();
 		RoomExtensionSettings extensionSettings 
 			= new RoomExtensionSettings("bombers", "com.vensella.bombers.game.BombersGame");
@@ -646,8 +733,22 @@ public class BombersDispatcher extends SFSExtension {
 		roomVariables.add(scheduleIndexVariable);
 		roomVariables.add(isGameStartedVariable);
 		settings.setRoomVariables(roomVariables);
-
-		getApi().createRoom(getParentZone(), settings, user, true, null);
+		
+		return settings;
+	}
+	
+	public void createGameForUsers(Room oldRoom, List<User> userList, int locationId) {
+		String name = findGameNameInternal();
+		try 
+		{
+			Room r = createGameInternal(locationId, name, "", false);
+			for (User user : userList) {
+				getApi().joinRoom(user, r, null, false, oldRoom);
+			}
+		} catch (Exception ex) {
+			trace(ExtensionLogLevel.ERROR, ex.toString());
+			trace(ExtensionLogLevel.ERROR, (Object[])ex.getStackTrace());
+		}
 	}
 	
 	//

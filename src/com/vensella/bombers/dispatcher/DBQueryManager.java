@@ -236,6 +236,16 @@ public class DBQueryManager {
 		f_queue.add(q);
 	}
 	
+	public void ScheduleCustomAction(final Runnable action, int delayMillis) {
+		SmartFoxServer.getInstance().getTaskScheduler().schedule(new Runnable() {
+			@Override
+			public void run() {
+				QueuedQuery q = new QueuedQuery(action);
+				f_queue.add(q);
+			}
+		}, delayMillis, TimeUnit.MILLISECONDS);
+	}
+	
 	public int getQueueSize() { return f_queue.size(); }
 	
 	public void beginDestroy() {
